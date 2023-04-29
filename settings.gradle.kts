@@ -1,0 +1,5 @@
+include(":app")
+include(":sceneform")
+include(":sceneformux")
+include(":domain")
+include(":data")

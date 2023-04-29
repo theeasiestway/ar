@@ -29,7 +29,7 @@ import java.io.File
 class ModelsExplorerViewModel(
     private val filesRepository: FilesRepository,
     private val settingsRepository: SettingsRepository,
-    private val dispatcherIO: CoroutineDispatcher
+    private val dispatcher: CoroutineDispatcher
 ): ContainerHost<State, ModelsExplorerViewModel.SideEffect>, ViewModel(), KoinComponent {
 
     override val container = container<State, SideEffect>(State()) {
@@ -116,7 +116,7 @@ class ModelsExplorerViewModel(
             var filesTreeDeferred: Deferred<FilesTree>? = null
             var modelsCollectionDeferred: Deferred<List<File>>? = null
 
-            viewModelScope.launch(dispatcherIO) {
+            viewModelScope.launch(dispatcher) {
                 filesTreeDeferred = async {
                     val lastFolder = settingsRepository.loadLastVisitedFolder()
                     filesRepository.loadLastVisitedFolder(lastFolder)

@@ -8,12 +8,15 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.theeasiestway.domain.repositories.SettingsRepository
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 class SettingsRepositoryImpl(
-    context: Context
+    context: Context,
+    private val dispatcher: CoroutineDispatcher
 ): SettingsRepository {
 
     private val context = context.applicationContext
@@ -32,11 +35,15 @@ class SettingsRepositoryImpl(
     }
 
     override suspend fun saveLastVisitedFolder(path: String) {
-        putStringValue(LAST_VISITED_FOLDER_KEY, path)
+        withContext(dispatcher) {
+            putStringValue(LAST_VISITED_FOLDER_KEY, path)
+        }
     }
 
     override suspend fun loadLastVisitedFolder(): String? {
-        return getStringValue(LAST_VISITED_FOLDER_KEY)
+        return withContext(dispatcher) {
+            getStringValue(LAST_VISITED_FOLDER_KEY)
+        }
     }
 
     private suspend fun putStringValue(key: String, value: String) {

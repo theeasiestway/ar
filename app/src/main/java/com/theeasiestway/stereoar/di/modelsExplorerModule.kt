@@ -15,15 +15,15 @@ val modelsExplorerModule = module {
 
     scope(named(modelsExplorerScopeId)) {
         scoped<SettingsRepository> {
-            SettingsRepositoryImpl(androidContext())
+            SettingsRepositoryImpl(androidContext(), get(named(ioDispatcher)))
         }
         scoped<FilesRepository> {
-            FilesRepositoryImpl(androidContext())
+            FilesRepositoryImpl(androidContext(), get(named(ioDispatcher)))
         }
     }
 
     viewModel {
         val scope = getScope(modelsExplorerScopeId)
-        ModelsExplorerViewModel(scope.get(), scope.get(), scope.get())
+        ModelsExplorerViewModel(scope.get(), scope.get(), scope.get(named(ioDispatcher)))
     }
 }

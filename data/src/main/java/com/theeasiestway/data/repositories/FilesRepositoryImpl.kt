@@ -4,11 +4,14 @@ import android.content.Context
 import android.os.Environment
 import com.theeasiestway.domain.model.FilesTree
 import com.theeasiestway.domain.repositories.FilesRepository
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.*
 
 class FilesRepositoryImpl(
-    context: Context
+    context: Context,
+    private val dispatcher: CoroutineDispatcher
 ): FilesRepository {
 
     companion object {
@@ -34,38 +37,46 @@ class FilesRepositoryImpl(
     )
 
     override suspend fun loadLastVisitedFolder(folderPath: String?): FilesTree {
-        return folderPath?.let { path -> openFolder(path) } ?: rootFilesTree
+        return withContext(dispatcher) {
+            folderPath?.let { path -> openFolder(path) } ?: rootFilesTree
+        }
     }
 
     override suspend fun openFolder(folderPath: String): FilesTree {
-        return if (isRootFolder(folderPath)) rootFilesTree
-        else {
-            val file = File(folderPath)
-            FilesTree(
-                rootPath = ROOT_PATH,
-                internalStorageRootPath = internalFilesDir.absolutePath,
-                externalStorageRootPath = externalFilesDir?.absolutePath,
-                currentPath = file.absolutePath,
-                parentPath = file.parentFile?.absolutePath,
-                files = file.listFiles()?.toList() ?: emptyList(),
-            )
+        return withContext(dispatcher) {
+            if (isRootFolder(folderPath)) rootFilesTree
+            else {
+                val file = File(folderPath)
+                FilesTree(
+                    rootPath = ROOT_PATH,
+                    internalStorageRootPath = internalFilesDir.absolutePath,
+                    externalStorageRootPath = externalFilesDir?.absolutePath,
+                    currentPath = file.absolutePath,
+                    parentPath = file.parentFile?.absolutePath,
+                    files = file.listFiles()?.toList() ?: emptyList(),
+                )
+            }
         }
     }
 
     @Throws(Exception::class, FileAlreadyExistsException::class)
     override suspend fun saveModelToCollection(modelPath: String) {
-        if (!modelsCollectionDir.exists()) {
-            modelsCollectionDir.mkdirs()
+        withContext(dispatcher) {
+            if (!modelsCollectionDir.exists()) {
+                modelsCollectionDir.mkdirs()
+            }
+            val sourceFile = File(modelPath)
+            val destFile = File(modelsCollectionDir, sourceFile.name)
+            sourceFile.copyTo(destFile)
         }
-        val sourceFile = File(modelPath)
-        val destFile = File(modelsCollectionDir, sourceFile.name)
-        sourceFile.copyTo(destFile)
     }
 
     override suspend fun loadModelsFromCollection(): List<File> {
-        return if (modelsCollectionDir.exists()) {
-            modelsCollectionDir.listFiles()?.toList() ?: emptyList()
-        } else emptyList()
+        return withContext(dispatcher) {
+            if (modelsCollectionDir.exists()) {
+                modelsCollectionDir.listFiles()?.toList() ?: emptyList()
+            } else emptyList()
+        }
     }
 
     private fun getExternalFilesDir(context: Context): File? {

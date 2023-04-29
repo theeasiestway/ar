@@ -20,12 +20,11 @@ class FilesRepositoryImpl(
 
     private val internalFilesDir = Environment.getExternalStorageDirectory()
     private val externalFilesDir = getExternalFilesDir(context)
-    private val externalFilesDirPath = getExternalFilesDirPath()
     private val modelsCollectionDir = File(context.filesDir, MODELS_COLLECTION_PATH)
     private val rootFilesTree = FilesTree(
         rootPath = ROOT_PATH,
         internalStorageRootPath = internalFilesDir.absolutePath,
-        externalStorageRootPath = externalFilesDirPath,
+        externalStorageRootPath = externalFilesDir?.absolutePath,
         currentPath = ROOT_PATH,
         parentPath = null,
         files = listOfNotNull(
@@ -45,7 +44,7 @@ class FilesRepositoryImpl(
             FilesTree(
                 rootPath = ROOT_PATH,
                 internalStorageRootPath = internalFilesDir.absolutePath,
-                externalStorageRootPath = externalFilesDirPath,
+                externalStorageRootPath = externalFilesDir?.absolutePath,
                 currentPath = file.absolutePath,
                 parentPath = file.parentFile?.absolutePath,
                 files = file.listFiles()?.toList() ?: emptyList(),
@@ -70,23 +69,24 @@ class FilesRepositoryImpl(
     }
 
     private fun getExternalFilesDir(context: Context): File? {
-        return if (Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED ||
+        val externalStoragePath: String? = if (Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED ||
             Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED_READ_ONLY) {
-            context.getExternalFilesDirs(null).firstOrNull { dir ->
-                val startPath = dir.absolutePath
-                    .split(EXTERNAL_FILES_DIR_POSTFIX, ignoreCase = true)
-                    .firstOrNull() ?: ""
-                !startPath.contains(internalFilesDir.absolutePath, true)
-            }
+            context.getExternalFilesDirs(null)
+                .firstOrNull { dir ->
+                    !dir.absolutePath.contains(internalFilesDir.absolutePath, true)
+                }?.run {
+                    absolutePath
+                        .split(EXTERNAL_FILES_DIR_POSTFIX, ignoreCase = true)
+                        .firstOrNull()
+                }
         } else null
-    }
-
-    private fun getExternalFilesDirPath(): String? {
-        return externalFilesDir?.absolutePath?.split(EXTERNAL_FILES_DIR_POSTFIX, ignoreCase = true)?.firstOrNull()
+        return externalStoragePath?.let { path ->
+            File(path)
+        }
     }
 
     private fun isRootFolder(folderPath: String): Boolean { // for handling back from some folder to root
         return (internalFilesDir.absolutePath.startsWith(folderPath) && folderPath.length < internalFilesDir.absolutePath.length) ||
-                (externalFilesDirPath != null && externalFilesDirPath.startsWith(folderPath) && folderPath.length < externalFilesDirPath.length)
+                (externalFilesDir != null && externalFilesDir.absolutePath.startsWith(folderPath) && folderPath.length < externalFilesDir.absolutePath.length)
     }
 }

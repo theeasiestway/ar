@@ -39,11 +39,11 @@
 
     <!--  Permissions  -->
     <string name="permission_storage_rational_title">File Storage Access</string>
-    <string name="permission_storage_rational_text">This application needs access to the file storage to load and save 3D models</string>
-    <string name="permission_storage_denied_text">This application needs access to the file storage to load and save 3D models you can grant it in the application settings</string>
+    <string name="permission_storage_rational_text">This application needs access to the file storage to load and save AR models</string>
+    <string name="permission_storage_denied_text">This application needs access to the file storage to load and save AR models you can grant it in the application settings</string>
     <string name="permission_camera_request_title_text">Camera Access</string>
-    <string name="permission_camera_request_body_text">For displaying 3D models in augmented reality this application needs access to camera</string>
-    <string name="permission_camera_request_denied_title_text">For displaying 3D models in augmented reality this application needs access to camera you can grant it in the application settings</string>
+    <string name="permission_camera_request_body_text">For displaying AR models in augmented reality this application needs access to camera</string>
+    <string name="permission_camera_request_denied_title_text">For displaying AR models in augmented reality this application needs access to camera you can grant it in the application settings</string>
 
     <!--  Errors  -->
     <string name="error_loading_models_explorer">Unable to load files, please check files permissions</string>

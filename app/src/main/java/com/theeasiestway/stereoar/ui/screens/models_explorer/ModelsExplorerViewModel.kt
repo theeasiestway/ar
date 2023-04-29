@@ -7,6 +7,7 @@ import com.theeasiestway.domain.model.FilesTree
 import com.theeasiestway.domain.repositories.FilesRepository
 import com.theeasiestway.domain.repositories.SettingsRepository
 import com.theeasiestway.stereoar.di.modelsExplorerScopeId
+import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.koin.closeScope
 import com.theeasiestway.stereoar.ui.screens.common.postSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.state
@@ -32,12 +33,12 @@ class ModelsExplorerViewModel(
 ): ContainerHost<State, ModelsExplorerViewModel.SideEffect>, ViewModel(), KoinComponent {
 
     override val container = container<State, SideEffect>(State()) {
-        handleIntent(Intent.CheckPermissions(false))
+        postSideEffect(SideEffect.RequestPermissions)
     }
     val uiState = state.map { it.toUiState() }
 
     sealed interface Intent {
-        data class CheckPermissions(val isGranted: Boolean): Intent
+        data class HandlePermissionResult(val result: PermissionResult): Intent
         object LoadData: Intent
         object GoBack: Intent
         data class OpenFile(val file: FileItem): Intent
@@ -53,11 +54,12 @@ class ModelsExplorerViewModel(
         ): Event
         data class FolderOpened(val filesTree: FilesTree): Event
         object ShowOptions: Event
-        object ShowCloseAppDialog: Event
     }
 
     sealed interface SideEffect {
         object RequestPermissions: SideEffect
+        object ShowCloseAppDialog: SideEffect
+        object CloseApp: SideEffect
         data class OpenShowModelScreen(val modelUri: String): SideEffect
         object ErrorLoadingData: SideEffect
         data class ErrorOpeningFile(val isFolder: Boolean): SideEffect
@@ -73,7 +75,7 @@ class ModelsExplorerViewModel(
 
     private fun actor(state: State, intent: Intent): Flow<Event> {
         return when(intent) {
-            is Intent.CheckPermissions -> checkPermissions(intent.isGranted)
+            is Intent.HandlePermissionResult -> handlePermissionResult(intent.result)
             is Intent.LoadData -> loadData()
             is Intent.GoBack -> goBack(state)
             is Intent.OpenFile -> openFile(
@@ -85,11 +87,13 @@ class ModelsExplorerViewModel(
         }
     }
 
-    private fun checkPermissions(isGranted: Boolean): Flow<Event> {
-        return if (isGranted) loadData()
-        else {
-            postSideEffect(SideEffect.RequestPermissions)
-            emptyFlow()
+    private fun handlePermissionResult(result: PermissionResult): Flow<Event> {
+        return when(result) {
+            PermissionResult.Granted -> loadData()
+            PermissionResult.DeniedForeverCloseApp -> {
+                postSideEffect(SideEffect.CloseApp)
+                emptyFlow()
+            }
         }
     }
 
@@ -98,7 +102,7 @@ class ModelsExplorerViewModel(
             openFile(path, true)
         } ?: run {
             flow {
-                emit(Event.ShowCloseAppDialog)
+                postSideEffect(SideEffect.ShowCloseAppDialog)
             }
         }
     }
@@ -171,9 +175,6 @@ class ModelsExplorerViewModel(
             is Event.ShowOptions -> state.copy(
                 showOptions = true
             )
-            is Event.ShowCloseAppDialog -> state.copy(
-                showCloseAppDialog = true
-            )
         }
     }
 
@@ -186,8 +187,7 @@ private fun State.toUiState(): UiState {
     return UiState(
         permissionsGranted = permissionsGranted,
         pages = toPages(),
-        showOptions = showOptions,
-        showCloseAppDialog = showCloseAppDialog
+        showOptions = showOptions
     )
 }
 

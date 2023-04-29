@@ -15,13 +15,11 @@ data class State(
         files = emptyList()
     ),
     val collectedModels: List<File> = emptyList(),
-    val showOptions: Boolean = false,
-    val showCloseAppDialog: Boolean = false
+    val showOptions: Boolean = false
 )
 
 data class UiState(
     val permissionsGranted: Boolean = false,
     val pages: List<PagerPage> = emptyList(),
-    val showOptions: Boolean = false,
-    val showCloseAppDialog: Boolean = false
+    val showOptions: Boolean = false
 )

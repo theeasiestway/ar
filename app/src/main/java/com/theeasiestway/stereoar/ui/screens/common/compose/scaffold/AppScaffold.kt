@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -35,12 +34,13 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 
 @OptIn(
     ExperimentalMaterialNavigationApi::class,
-    ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class
+    ExperimentalAnimationApi::class
 )
 @Composable
 fun AppScaffold(
     navGraph: NavGraph,
-    startRoute: Route
+    startRoute: Route,
+    onCloseApp: () -> Unit
 ) {
     val navHostEngine = rememberAnimatedNavHostEngine(
         rootDefaultAnimations = RootNavGraphDefaultAnimations.ACCOMPANIST_FADING,
@@ -93,7 +93,8 @@ fun AppScaffold(
             ) {
                 modelsExplorerScreenFactory(
                     snackBarHostState = snackBarHostState,
-                    topBarActionsClickListener = topBarActionsClickListener
+                    topBarActionsClickListener = topBarActionsClickListener,
+                    onCloseApp = onCloseApp
                 )
             }
         }

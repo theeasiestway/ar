@@ -5,7 +5,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
-import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -21,8 +20,7 @@ fun ReadFilesPermission(
     rationalText: String,
     deniedTitle: String,
     deniedText: String,
-    onResult: (isGranted: Boolean) -> Unit,
-    onCloseApp: () -> Unit
+    onResult: (PermissionResult) -> Unit
 ) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
         RequestPermissions(
@@ -32,17 +30,15 @@ fun ReadFilesPermission(
             rationalText = rationalText,
             deniedTitle = deniedTitle,
             deniedText = deniedText,
-            onResult = onResult,
-            onCloseApp = onCloseApp
+            onResult = onResult
         )
     } else {
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
         var requestAttempt by remember { mutableStateOf(0) }
         if (requestAttempt > 0) {
-            Log.d("qdwddqw", "requestAttempt: $requestAttempt; check")
             if (Environment.isExternalStorageManager()) {
-                onResult(true)
+                onResult(PermissionResult.Granted)
             } else {
                 PermissionRationaleDialog(
                     icon = icon,
@@ -60,8 +56,7 @@ fun ReadFilesPermission(
         }
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    Log.d("qdwddqw", "requestAttempt: $requestAttempt; ON_RESUME")
+                if (event == Lifecycle.Event.ON_START) {
                     requestAttempt++
                 }
             }

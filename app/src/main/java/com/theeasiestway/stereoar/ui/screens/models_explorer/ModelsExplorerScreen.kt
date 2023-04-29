@@ -62,7 +62,8 @@ import java.util.*
 
 fun ManualComposableCallsBuilder.modelsExplorerScreenFactory(
     snackBarHostState: SnackbarHostState,
-    topBarActionsClickListener: Flow<TopBarAction>
+    topBarActionsClickListener: Flow<TopBarAction>,
+    onCloseApp: () -> Unit
 ) {
     composable(ModelsExplorerScreenDestination) {
         createScopeIfNull(scopeId = modelsExplorerScopeId)
@@ -70,7 +71,8 @@ fun ManualComposableCallsBuilder.modelsExplorerScreenFactory(
             snackBarHostState = snackBarHostState,
             navigator = destinationsNavigator,
             topBarActionsClickListener = topBarActionsClickListener,
-            requestPermissionHandler = resultRecipient()
+            requestPermissionHandler = resultRecipient(),
+            onCloseApp = onCloseApp
         )
     }
 }
@@ -82,6 +84,7 @@ fun ModelsExplorerScreen(
     snackBarHostState: SnackbarHostState,
     navigator: DestinationsNavigator,
     topBarActionsClickListener: Flow<TopBarAction>,
+    onCloseApp: () -> Unit,
     requestPermissionHandler: ResultRecipient<RequestPermissionDialogDestination, RequestPermissionResult>
 ) {
     val viewModel: ModelsExplorerViewModel = koinViewModel()
@@ -105,7 +108,7 @@ fun ModelsExplorerScreen(
 
     requestPermissionHandler.onNavResult { result ->
         if (result is NavResult.Value && result.value.permission == Permission.ReadFiles) {
-            viewModel.handleIntent(Intent.CheckPermissions(result.value.isGranted))
+            viewModel.handleIntent(Intent.HandlePermissionResult(result.value.result))
         }
     }
 
@@ -138,6 +141,12 @@ fun ModelsExplorerScreen(
             }
             is SideEffect.OpenShowModelScreen -> {
                 navigator.navigate(ModelViewScreenDestination)
+            }
+            is SideEffect.ShowCloseAppDialog -> {
+                TODO()
+            }
+            is SideEffect.CloseApp -> {
+                onCloseApp()
             }
         }
     }

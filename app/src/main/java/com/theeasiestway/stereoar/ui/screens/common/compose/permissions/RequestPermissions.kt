@@ -1,6 +1,5 @@
 package com.theeasiestway.stereoar.ui.screens.common.compose.permissions
 
-import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -11,6 +10,11 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 
+enum class PermissionResult {
+    Granted,
+    DeniedForeverCloseApp
+}
+
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun RequestPermissions(
@@ -20,21 +24,18 @@ fun RequestPermissions(
     rationalText: String,
     deniedTitle: String,
     deniedText: String,
-    onResult: (isGranted: Boolean) -> Unit,
-    onCloseApp: () -> Unit
+    onResult: (PermissionResult) -> Unit
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var requestAnswered by remember { mutableStateOf(false) }
     val permissionState = rememberPermissionState(permission = permission) {
-        Log.d("qdwddqw", "[old] received request result granted: $it")
         requestAnswered = true
     }
     var requestAttempt by remember { mutableStateOf(0) }
     if (requestAttempt > 0) {
         if (requestAnswered) {
-            Log.d("qdwddqw", "[old] requestAttempt: $requestAttempt; requestAnswered")
             if (permissionState.status.isGranted) {
-                onResult(true)
+                onResult(PermissionResult.Granted)
             } else if (permissionState.status.shouldShowRationale) {
                 PermissionRationaleDialog(
                     icon = icon,
@@ -48,13 +49,14 @@ fun RequestPermissions(
                     icon = icon,
                     title = deniedTitle,
                     text = deniedText,
-                    onCloseApp = onCloseApp
+                    onCloseApp = {
+                        onResult(PermissionResult.DeniedForeverCloseApp)
+                    }
                 )
             }
         }
 
         LaunchedEffect(requestAttempt) {
-            Log.d("qdwddqw", "[old] requestAttempt: $requestAttempt; check")
             permissionState.launchPermissionRequest()
         }
     }
@@ -62,7 +64,6 @@ fun RequestPermissions(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
-                Log.d("qdwddqw", "[old] requestAttempt: $requestAttempt; ON_START")
                 requestAttempt++
             }
         }

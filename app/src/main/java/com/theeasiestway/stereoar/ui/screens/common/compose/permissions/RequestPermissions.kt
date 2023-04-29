@@ -1,5 +1,6 @@
 package com.theeasiestway.stereoar.ui.screens.common.compose.permissions
 
+import android.os.Parcelable
 import androidx.annotation.DrawableRes
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -9,11 +10,23 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
+import kotlinx.parcelize.Parcelize
+
+enum class Permission {
+    Camera,
+    ReadFiles
+}
 
 enum class PermissionResult {
     Granted,
     DeniedForeverCloseApp
 }
+
+@Parcelize
+data class RequestPermissionResult(
+    val permission: Permission,
+    val result: PermissionResult
+): Parcelable
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable

@@ -1,14 +1,11 @@
 package com.theeasiestway.stereoar.ui.screens.common.compose.permissions
 
-import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.ui.screens.common.compose.dialogs.TextDialog
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource

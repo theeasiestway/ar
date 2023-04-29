@@ -36,7 +36,6 @@ import com.theeasiestway.stereoar.di.is24TimeFormatQualifier
 import com.theeasiestway.stereoar.di.modelsExplorerScopeId
 import com.theeasiestway.stereoar.ui.screens.common.compose.images.ImageDrawable
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.Permission
-import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.RequestPermissionInput
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.RequestPermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBarAction
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.*
@@ -46,7 +45,7 @@ import com.theeasiestway.stereoar.ui.screens.common.koin.createScopeIfNull
 import com.theeasiestway.stereoar.ui.screens.common.onSideEffect
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelsExplorerScreenDestination
-import com.theeasiestway.stereoar.ui.screens.destinations.RequestPermissionDialogDestination
+import com.theeasiestway.stereoar.ui.screens.destinations.RequestFilesPermissionScreenDestination
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelsExplorerViewModel.Intent
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelsExplorerViewModel.SideEffect
 import com.theeasiestway.stereoar.ui.theme.AppTheme
@@ -85,7 +84,7 @@ fun ModelsExplorerScreen(
     navigator: DestinationsNavigator,
     topBarActionsClickListener: Flow<TopBarAction>,
     onCloseApp: () -> Unit,
-    requestPermissionHandler: ResultRecipient<RequestPermissionDialogDestination, RequestPermissionResult>
+    requestPermissionHandler: ResultRecipient<RequestFilesPermissionScreenDestination, RequestPermissionResult>
 ) {
     val viewModel: ModelsExplorerViewModel = koinViewModel()
     val uiState = viewModel.uiState.collectAsState(initial = UiState()).value
@@ -106,7 +105,7 @@ fun ModelsExplorerScreen(
         }
     }
 
-    requestPermissionHandler.onNavResult { result ->
+   requestPermissionHandler.onNavResult { result ->
         if (result is NavResult.Value && result.value.permission == Permission.ReadFiles) {
             viewModel.handleIntent(Intent.HandlePermissionResult(result.value.result))
         }
@@ -115,11 +114,7 @@ fun ModelsExplorerScreen(
     viewModel.onSideEffect { effect ->
         when(effect) {
             is SideEffect.RequestPermissions -> {
-                navigator.navigate(
-                    RequestPermissionDialogDestination(
-                        input = RequestPermissionInput(Permission.ReadFiles)
-                    )
-                )
+                navigator.navigate(RequestFilesPermissionScreenDestination)
             }
             is SideEffect.ErrorLoadingData -> {
                 showSnackBar(
@@ -187,8 +182,6 @@ private fun Content(
             onModelClick = onModelClick,
             onBackClick = onBackClick
         )
-    } else {
-        PagesShimmer()
     }
 }
 
@@ -250,11 +243,6 @@ fun Pages(
 }
 
 @Composable
-fun PagesShimmer() {
-
-}
-
-@Composable
 private fun PagerTitle(page: PagerPage) {
     val text = when(page) {
         is PagerPage.FilesExplorer -> R.string.models_explorer_title.resource()
@@ -283,7 +271,7 @@ private fun FilesExplorer(
             color = DividerDefaults.color.copy(alpha = 0.1f)
         )
         if (page.files.isNotEmpty()) {
-            FileList(
+            FilesList(
                 page = page,
                 dateFormatter = dateFormatter,
                 onFileClick = onFileClick
@@ -317,7 +305,7 @@ private fun FilePath(
 }
 
 @Composable
-private fun FileList(
+private fun FilesList(
     page: PagerPage.FilesExplorer,
     dateFormatter: DateFormat,
     onFileClick: (FileItem) -> Unit,

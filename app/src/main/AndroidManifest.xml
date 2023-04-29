@@ -34,6 +34,7 @@
         <meta-data android:name="com.google.ar.core" android:value="required" />
 
         <activity
+            android:launchMode="singleInstance"
             android:name="com.theeasiestway.stereoar.activity.MainActivity"
             android:theme="@style/AppTheme"
             android:exported="true">

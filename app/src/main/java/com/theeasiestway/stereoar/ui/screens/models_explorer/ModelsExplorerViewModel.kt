@@ -58,9 +58,8 @@ class ModelsExplorerViewModel(
 
     sealed interface SideEffect {
         object RequestPermissions: SideEffect
-        object ShowCloseAppDialog: SideEffect
         object CloseApp: SideEffect
-        data class OpenShowModelScreen(val modelUri: String): SideEffect
+        data class OpenModelScreen(val modelUri: String): SideEffect
         object ErrorLoadingData: SideEffect
         data class ErrorOpeningFile(val isFolder: Boolean): SideEffect
     }
@@ -75,14 +74,11 @@ class ModelsExplorerViewModel(
 
     private fun actor(state: State, intent: Intent): Flow<Event> {
         return when(intent) {
-            is Intent.HandlePermissionResult -> handlePermissionResult(intent.result)
+            is Intent.HandlePermissionResult -> handlePermissionResult(result = intent.result)
             is Intent.LoadData -> loadData()
-            is Intent.GoBack -> goBack(state)
-            is Intent.OpenFile -> openFile(
-                path = intent.file.path,
-                isFolder = intent.file is FileItem.Root || intent.file is FileItem.NotRoot.Folder
-            )
-            is Intent.ShowModel -> showModel(model = intent.model)
+            is Intent.GoBack -> goBack(files = state.files)
+            is Intent.OpenFile -> openFile(file = intent.file)
+            is Intent.ShowModel -> showModel(modelUri = intent.model.path)
             is Intent.ShowOptions -> showOptions()
         }
     }
@@ -97,14 +93,10 @@ class ModelsExplorerViewModel(
         }
     }
 
-    private fun goBack(state: State): Flow<Event> {
-        return state.files.parentPath?.let { path ->
+    private fun goBack(files: FilesTree): Flow<Event> {
+        return files.parentPath?.let { path ->
             openFile(path, true)
-        } ?: run {
-            flow {
-                postSideEffect(SideEffect.ShowCloseAppDialog)
-            }
-        }
+        } ?: emptyFlow()
     }
 
     private fun showOptions() = flow<Event> {
@@ -141,20 +133,29 @@ class ModelsExplorerViewModel(
         }
     }
 
+    private fun openFile(file: FileItem): Flow<Event> {
+        return openFile(
+            path = file.path,
+            isFolder = file is FileItem.Root || file is FileItem.NotRoot.Folder
+        )
+    }
+
     private fun openFile(path: String, isFolder: Boolean) = flow<Event> {
         try {
-            val files = filesRepository.openFolder(path)
-            emit(Event.FolderOpened(files))
+            if (isFolder) {
+                val files = filesRepository.openFolder(path)
+                emit(Event.FolderOpened(files))
+            } else {
+                showModel(path)
+            }
         } catch (e: Throwable) {
             e.printStackTrace()
             postSideEffect(SideEffect.ErrorOpeningFile(isFolder))
         }
     }
 
-    private fun showModel(model: CollectedModel): Flow<Event> {
-        return flow {
-            postSideEffect(SideEffect.OpenShowModelScreen(model.path))
-        }
+    private fun showModel(modelUri: String) = flow<Event> {
+        postSideEffect(SideEffect.OpenModelScreen(modelUri))
     }
 
     private fun reduce(state: State, event: Event): State {

@@ -105,7 +105,7 @@ fun ModelsExplorerScreen(
         }
     }
 
-   requestPermissionHandler.onNavResult { result ->
+    requestPermissionHandler.onNavResult { result ->
         if (result is NavResult.Value && result.value.permission == Permission.ReadFiles) {
             viewModel.handleIntent(Intent.HandlePermissionResult(result.value.result))
         }
@@ -124,9 +124,8 @@ fun ModelsExplorerScreen(
                 )
             }
             is SideEffect.ErrorOpeningFile -> {
-                val fileOrFolder =  context.getString(
-                    if (effect.isFolder) R.string.general_folder
-                    else R.string.general_file
+                val fileOrFolder = context.getString(
+                    if (effect.isFolder) R.string.general_folder else R.string.general_file
                 ).lowercase()
                 showSnackBar(
                     coroutineScope = coroutineScope,
@@ -134,11 +133,8 @@ fun ModelsExplorerScreen(
                     message = context.getString(R.string.error_opening_file_or_folder, fileOrFolder)
                 )
             }
-            is SideEffect.OpenShowModelScreen -> {
+            is SideEffect.OpenModelScreen -> {
                 navigator.navigate(ModelViewScreenDestination)
-            }
-            is SideEffect.ShowCloseAppDialog -> {
-                TODO()
             }
             is SideEffect.CloseApp -> {
                 onCloseApp()

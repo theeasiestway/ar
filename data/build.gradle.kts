@@ -28,7 +28,6 @@ dependencies {
     // Use the Sceneform UX Package built from the source files included in the sceneformux folder.
     api(project(":sceneformux"))
     api(project(":domain"))
-    api(AppDeps.App.coroutinesAndroid)
     implementation(AppDeps.Main.kotlinAndroidKtx)
     implementation(AppDeps.App.dataStore)
     testImplementation(AppDeps.Test.junit)

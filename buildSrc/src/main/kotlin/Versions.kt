@@ -18,6 +18,7 @@ object Versions {
         const val appCompat = "1.6.1"
         const val material = "1.9.0-rc01"
 
+        const val coroutinesX = "1.7.0-RC"
         const val coroutinesAndroid = "1.7.0-RC"
         const val coroutinesViewModelExt = "2.6.1"
 

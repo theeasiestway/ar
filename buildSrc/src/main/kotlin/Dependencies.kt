@@ -22,11 +22,13 @@ object AppDeps {
     object Plugins {
         object Kotlin {
             val android = "android"
+            val jvm = "jvm"
         }
         object Id {
             val application = "com.android.application"
             val parcelize = "kotlin-parcelize"
             val ksp = "com.google.devtools.ksp"
+            val javaLibrary = "java-library"
         }
     }
 
@@ -42,6 +44,7 @@ object AppDeps {
         val appCompat = "androidx.appcompat:appcompat:${Versions.App.appCompat}"
         val androidMaterial = "com.google.android.material:material:${Versions.App.material}"
 
+        val coroutinesX = "org.jetbrains.kotlinx:kotlinx-coroutines-core:${Versions.App.coroutinesX}"
         val coroutinesAndroid = "org.jetbrains.kotlinx:kotlinx-coroutines-android:${Versions.App.coroutinesAndroid}"
         val coroutinesViewModelExt = "androidx.lifecycle:lifecycle-viewmodel-ktx:${Versions.App.coroutinesViewModelExt}"
 

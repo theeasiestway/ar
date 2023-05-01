@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <plurals name="models_explorer_files_count">
+    <plurals name="general_files_count">
         <item quantity="one">File</item>
         <item quantity="other">Files</item>
     </plurals>

@@ -6,7 +6,7 @@ import com.google.ar.sceneform.rendering.ModelRenderable
 import com.theeasiestway.domain.repositories.FilesRepository
 import com.theeasiestway.domain.repositories.ModelsRepository
 import com.theeasiestway.stereoar.di.modelViewScopeId
-import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBarAction
+import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.koin.closeScope
 import com.theeasiestway.stereoar.ui.screens.common.postSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.state
@@ -29,30 +29,44 @@ import org.orbitmvi.orbit.viewmodel.container
 class ModelViewViewModel(
     private val modelsRepository: ModelsRepository<ModelRenderable>,
     private val filesRepository: FilesRepository,
-    private val dispatcher: CoroutineDispatcher
+    private val dispatcherIO: CoroutineDispatcher,
+    private val dispatcherMain: CoroutineDispatcher
 ): ContainerHost<State, ModelViewViewModel.SideEffect>, ViewModel(), KoinComponent {
 
-    override val container = container<State, SideEffect>(State())
+    override val container = container<State, SideEffect>(State()) {
+        handleIntent(Intent.RequestPermissions)
+    }
     val uiState = state.map { it.toUiState() }
 
     sealed interface Intent {
-        data class HandleTopBarActionClick(val action: TopBarAction): Intent
-        data class LoadModel(val modelUri: ModelUri): Intent
+        object RequestPermissions: Intent
+        object HandleSceneCleared: Intent
+        data class HandlePermissionResult(
+            val result: PermissionResult,
+            val modelUri: ModelUri
+        ): Intent
+        object HandleTopBarActionClick: Intent
+        object HandleClearScene: Intent
         data class SaveToCollection(val modelUri: ModelUri): Intent
         data class RemoveFromCollection(val modelUri: ModelUri.File): Intent
     }
 
     sealed interface Event {
+        object RequestPermissions: Event
         object ShowOptions: Event
         data class ModelLoaded(
+            val footPrintModel: ModelRenderable,
             val model: ModelRenderable,
             val addedToCollection: Boolean
         ): Event
+        object ClearScene: Event
+        object SceneCleared: Event
         data class SavedToCollection(val modelUri: String): Event
         data class RemovedFromCollection(val modelUri: String): Event
     }
 
     sealed interface SideEffect {
+        object CloseScreen: SideEffect
         data class SavedToCollection(val modelName: String): SideEffect
         data class RemovedFromCollection(val modelName: String): SideEffect
         object ErrorSaveToCollection: SideEffect
@@ -70,46 +84,71 @@ class ModelViewViewModel(
 
     private fun actor(state: State, intent: Intent): Flow<Event> {
         return when(intent) {
-            is Intent.HandleTopBarActionClick -> handleTopBarActionClick(intent.action)
-            is Intent.LoadModel -> loadModel(intent.modelUri)
+            is Intent.RequestPermissions -> requestPermissions()
+            is Intent.HandlePermissionResult -> handlePermissionResult(intent.result, intent.modelUri)
+            is Intent.HandleClearScene -> handleClearScene()
+            is Intent.HandleSceneCleared -> handleSceneCleared()
+            is Intent.HandleTopBarActionClick -> handleTopBarActionClick()
             is Intent.SaveToCollection -> saveToCollection(intent.modelUri)
             is Intent.RemoveFromCollection -> removeFromCollection(intent.modelUri)
         }
     }
 
-    private fun handleTopBarActionClick(action: TopBarAction): Flow<Event> {
-        return if (action == TopBarAction.More) showOptions()
-        else emptyFlow()
+    private fun handleClearScene() = flow<Event> {
+        emit(Event.ClearScene)
     }
 
-    private fun showOptions() = flow<Event> {
+    private fun handleSceneCleared() = flow<Event> {
+        emit(Event.SceneCleared)
+    }
+
+    private fun requestPermissions() = flow<Event> {
+        emit(Event.RequestPermissions)
+    }
+
+    private fun handlePermissionResult(
+        result: PermissionResult,
+        modelUri: ModelUri
+    ): Flow<Event> {
+        return when(result) {
+            PermissionResult.Granted -> loadModel(modelUri)
+            PermissionResult.DeniedForeverAndCanceled -> {
+                postSideEffect(SideEffect.CloseScreen)
+                emptyFlow()
+            }
+        }
+    }
+
+    private fun handleTopBarActionClick() = flow<Event> {
         emit(Event.ShowOptions)
     }
 
-    private fun loadModel(modelUri: ModelUri) = flow<Event> {
+    private fun loadModel(modelUri: ModelUri, ) = flow<Event> {
         try {
             var collectedModelsDeferred: Deferred<List<String>>? = null
+            var footPrintModelDeferred: Deferred<ModelRenderable?>? = null
             var modelDeferred: Deferred<ModelRenderable?>? = null
-            viewModelScope.launch(dispatcher) {
+            viewModelScope.launch(dispatcherIO) {
                 collectedModelsDeferred = async {
                     filesRepository.loadModelsFromCollection().map { it.absolutePath }
                 }
-                modelDeferred = async {
+                footPrintModelDeferred = async(dispatcherMain) {
+                    modelsRepository.loadFootPrintModel()
+                }
+                modelDeferred = async(dispatcherMain) {
                     modelsRepository.loadModel(modelUri.uri)
                 }
             }.join()
             val collectedModels = collectedModelsDeferred!!.await()
-            val model = modelDeferred!!.await()
-            if (model != null) {
-                emit(
-                    Event.ModelLoaded(
-                        model = model,
-                        addedToCollection = collectedModels.contains(modelUri.uri)
-                    )
+            val footPrintModel = footPrintModelDeferred!!.await()!!
+            val model = modelDeferred!!.await()!!
+            emit(
+                Event.ModelLoaded(
+                    footPrintModel = footPrintModel,
+                    model = model,
+                    addedToCollection = collectedModels.contains(modelUri.uri)
                 )
-            } else {
-                postSideEffect(SideEffect.ErrorLoadingModel)
-            }
+            )
         } catch (e: Throwable) {
             e.printStackTrace()
             postSideEffect(SideEffect.ErrorLoadingModel)
@@ -129,7 +168,7 @@ class ModelViewViewModel(
     private fun removeFromCollection(modelUri: ModelUri.File) = flow<Event> {
         try {
             filesRepository.removeModelFromCollection(modelUri.toFileUri())
-            postSideEffect(SideEffect.RemovedFromCollection(modelUri.uri.substringAfterLast("/")))
+            postSideEffect(SideEffect.RemovedFromCollection(modelUri.getFileName()))
         } catch (e: Throwable) {
             e.printStackTrace()
             postSideEffect(SideEffect.ErrorRemoveFromCollection)
@@ -138,13 +177,24 @@ class ModelViewViewModel(
 
     private fun reduce(state: State, event: Event): State {
         return when(event) {
+            is Event.RequestPermissions -> state.copy(
+                requestPermissions = true
+            )
             is Event.ShowOptions -> state.copy(
                 showOptions = true
             )
             is Event.ModelLoaded -> state.copy(
                 isLoading = false,
+                requestPermissions = false,
                 addedToCollection = event.addedToCollection,
+                footPrintModel = event.footPrintModel,
                 model = event.model
+            )
+            is Event.ClearScene -> state.copy(
+                clearScene = true
+            )
+            is Event.SceneCleared -> state.copy(
+                clearScene = false
             )
             is Event.RemovedFromCollection -> state.copy(
                 isLoading = false,
@@ -165,8 +215,11 @@ class ModelViewViewModel(
 private fun State.toUiState(): UiState {
     return UiState(
         isLoading = isLoading,
+        requestPermissions = requestPermissions,
         addedToCollection = addedToCollection,
+        footPrintModel = footPrintModel,
         model = model,
-        showOptions = showOptions
+        showOptions = showOptions,
+        clearScene = clearScene
     )
 }

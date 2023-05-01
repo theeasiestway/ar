@@ -34,6 +34,7 @@ fun PermissionRationaleDialog(
 fun PermissionDeniedDialog(
     title: String,
     text: String,
+    dismissButtonText: String,
     @DrawableRes icon: Int,
     onCloseApp: () -> Unit
 ) {
@@ -46,7 +47,7 @@ fun PermissionDeniedDialog(
         title = title,
         text = text,
         confirmButtonText = R.string.general_open_settings.resource(),
-        dismissButtonText = R.string.general_close_app.resource(),
+        dismissButtonText = dismissButtonText,
         onConfirmButtonClick = {
             context.startActivity(appSettingsIntent)
         },

@@ -1,7 +1,9 @@
 package com.theeasiestway.stereoar.ui.screens.models_explorer
 
 import android.text.format.Formatter.formatFileSize
+import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.*
 import androidx.compose.material3.*
@@ -27,14 +28,15 @@ import com.ramcosta.composedestinations.annotation.RootNavGraph
 import com.ramcosta.composedestinations.manualcomposablecalls.ManualComposableCallsBuilder
 import com.ramcosta.composedestinations.manualcomposablecalls.composable
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import com.ramcosta.composedestinations.result.NavResult
 import com.ramcosta.composedestinations.result.ResultRecipient
 import com.ramcosta.composedestinations.scope.resultRecipient
 import com.theeasiestway.domain.model.CollectedModel
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.is24TimeFormatQualifier
 import com.theeasiestway.stereoar.ui.screens.common.compose.images.ImageDrawable
-import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.Permission
+import com.theeasiestway.stereoar.ui.screens.common.compose.modifiers.shimmerEffect
+import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
+import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.ReadFilesPermission
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.RequestPermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBarAction
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.*
@@ -102,22 +104,13 @@ fun ModelsExplorerScreen(
         }
     }
 
-    requestPermissionHandler.onNavResult { result ->
-        if (result is NavResult.Value && result.value.permission == Permission.ReadFiles) {
-            viewModel.handleIntent(Intent.HandlePermissionResult(result.value.result))
-        }
-    }
-
     viewModel.onSideEffect { effect ->
         when(effect) {
-            is SideEffect.RequestPermissions -> {
-                navigator.navigate(RequestFilesPermissionScreenDestination)
-            }
             is SideEffect.ErrorLoadingData -> {
                 showSnackBar(
                     coroutineScope = coroutineScope,
                     snackBarHostState = snackBarHostState,
-                    message = context.getString(R.string.error_loading_models_explorer)
+                    message = context.getString(R.string.models_explorer_error_loading_files)
                 )
             }
             is SideEffect.ErrorOpeningFile -> {
@@ -127,7 +120,7 @@ fun ModelsExplorerScreen(
                 showSnackBar(
                     coroutineScope = coroutineScope,
                     snackBarHostState = snackBarHostState,
-                    message = context.getString(R.string.error_opening_file_or_folder, fileOrFolder)
+                    message = context.getString(R.string.models_explorer_error_opening_file_or_folder, fileOrFolder)
                 )
             }
             is SideEffect.OpenModelScreen -> {
@@ -142,6 +135,9 @@ fun ModelsExplorerScreen(
         uiState = uiState,
         coroutineScope = coroutineScope,
         dateFormatter = dateFormatter,
+        onRequestPermissionsResult = { result ->
+            viewModel.handleIntent(Intent.HandlePermissionResult(result))
+        },
         onFileClick = { file ->
             viewModel.handleIntent(Intent.OpenFile(file))
         },
@@ -154,22 +150,36 @@ fun ModelsExplorerScreen(
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Content(
     uiState: UiState,
     coroutineScope: CoroutineScope,
     dateFormatter: DateFormat,
+    onRequestPermissionsResult: (PermissionResult) -> Unit,
     onFileClick: (FileItem) -> Unit,
     onModelClick: (CollectedModel) -> Unit,
     onBackClick: () -> Unit
 ) {
-    if (uiState.permissionsGranted) {
-        val pagerState = rememberPagerState()
-        Pages(
+    if (uiState.isLoading || uiState.requestPermissions) {
+        if (uiState.requestPermissions) {
+            ReadFilesPermission(
+                icon = R.drawable.ic_folder,
+                rationalTitle = R.string.files_permission_rational_title.resource(),
+                rationalText = R.string.files_permission_rational_text.resource(),
+                deniedTitle = R.string.files_permission_rational_title.resource(),
+                deniedText = R.string.files_permission_denied_text.resource(),
+                deniedDismissButtonText = R.string.general_close_app.resource(),
+                onResult = { result ->
+                    Log.d("qdwqdqw", "result: $result")
+                    onRequestPermissionsResult(result)
+                }
+            )
+        }
+        ShimmeredFilesList()
+    } else {
+        Pager(
             coroutineScope = coroutineScope,
             dateFormatter = dateFormatter,
-            pagerState = pagerState,
             pages = uiState.pages,
             onFileClick = onFileClick,
             onModelClick = onModelClick,
@@ -180,15 +190,73 @@ private fun Content(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Pages(
+private fun ShimmeredFilesList() {
+    val count = 40
+    LazyColumn {
+        repeat(count) { index ->
+            item {
+                ShimmeredFileListItem(
+                    modifier = Modifier.animateItemPlacement()
+                )
+                if (index != count - 1) {
+                    Divider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = DividerDefaults.color.copy(alpha = 0.1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShimmeredFileListItem(
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier
+        .fillMaxWidth()
+        .height(60.dp)
+        .padding(horizontal = 16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .align(Alignment.CenterVertically)
+                .shimmerEffect(),
+        )
+        Column(modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .padding(start = 8.dp),
+            verticalArrangement = Arrangement.SpaceAround
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(15.dp)
+                    .shimmerEffect()
+            )
+            Box(
+                modifier = Modifier
+                    .width(100.dp)
+                    .height(10.dp)
+                    .shimmerEffect()
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun Pager(
     coroutineScope: CoroutineScope,
     dateFormatter: DateFormat,
-    pagerState: PagerState,
     pages: List<PagerPage>,
     onFileClick: (FileItem) -> Unit,
     onModelClick: (CollectedModel) -> Unit,
     onBackClick: () -> Unit
 ) {
+    val pagerState = rememberPagerState()
     Column {
         TabRow(
             selectedTabIndex = pagerState.currentPage,
@@ -297,6 +365,7 @@ private fun FilePath(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FilesList(
     page: PagerPage.FilesExplorer,
@@ -311,7 +380,8 @@ private fun FilesList(
             FileListItem(
                 file = file,
                 dateFormatter = dateFormatter,
-                onClick = onFileClick
+                onClick = onFileClick,
+                modifier = Modifier.animateItemPlacement()
             )
             if (index != page.files.lastIndex) {
                 Divider(
@@ -355,7 +425,7 @@ private fun FileListItem(
                     isFolder = false
                 }
                 is FileItem.NotRoot.Folder -> {
-                    val filesLabel = context.resources.getQuantityString(R.plurals.models_explorer_files_count, file.filesCount)
+                    val filesLabel = context.resources.getQuantityString(R.plurals.general_files_count, file.filesCount)
                     icon = R.drawable.ic_folder
                     tint = AppTheme.colors.accent
                     title = file.title

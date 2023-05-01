@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import com.google.ar.sceneform.rendering.ModelRenderable
 import com.theeasiestway.data.R
-import com.theeasiestway.data.mappers.rawIdToString
 import com.theeasiestway.domain.exceptions.LoadArModelException
 import com.theeasiestway.domain.repositories.ArModelsRepository
 import java.lang.reflect.Field
@@ -36,11 +35,11 @@ class ArModelsRepositoryImpl(context: Context): ArModelsRepository<ModelRenderab
 
     override suspend fun getAllModels(): List<String> {
         return suspendCoroutine { continuation ->
-            getAllRawFilesIds().map { rawIdToString(it, context.resources) }
+            /*getAllRawFilesIds().map { rawIdToString(it, context.resources) }
                 .filter { !it.contains("sceneform", true) && !it.contains("keep_arcore", true) }
                 .also {
                     continuation.resume(it)
-                }
+                }*/
         }
     }
 

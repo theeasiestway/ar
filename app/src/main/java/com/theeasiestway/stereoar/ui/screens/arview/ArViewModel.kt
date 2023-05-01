@@ -12,7 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.ar.sceneform.rendering.ModelRenderable
 import com.theeasiestway.data.interactors.ArModelsRepositoryImpl
 import com.theeasiestway.data.interactors.GetArModelsInteractorImpl
-import com.theeasiestway.data.mappers.rawIdToString
+//import com.theeasiestway.data.mappers.rawIdToString
 import com.theeasiestway.domain.interactors.GetArModelsInteractor
 import com.theeasiestway.domain.repositories.ArModelsRepository
 import com.theeasiestway.stereoar.app.App
@@ -48,9 +48,9 @@ class ArViewModel(application: Application): AndroidViewModel(application) {
 
     private fun loadFootprintArModel() {
         viewModelScope.launch {
-            _footprintArModel.tryEmit(
+            /*_footprintArModel.tryEmit(
                 getArModelsInteractor.getModel(rawIdToString(SceneformUxRes.raw.sceneform_footprint, getApplication<App>().resources))
-            )
+            )*/
         }
     }
 

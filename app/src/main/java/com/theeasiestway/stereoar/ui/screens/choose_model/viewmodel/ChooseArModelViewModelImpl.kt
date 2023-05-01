@@ -181,7 +181,7 @@ class ChooseArModelViewModelImpl(application: Application): AndroidViewModel(app
     }
 
     private fun formatFilesCount(count: Int): String {
-        return "$count ${requireContext().resources.getQuantityString(R.plurals.models_explorer_files_count, count).lowercase(Locale.getDefault())}"
+        return "$count ${requireContext().resources.getQuantityString(R.plurals.general_files_count, count).lowercase(Locale.getDefault())}"
     }
 
     override fun observePages(): Flow<List<PagerPage>> {

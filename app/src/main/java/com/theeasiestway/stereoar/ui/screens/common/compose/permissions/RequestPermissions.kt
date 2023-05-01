@@ -12,14 +12,28 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import kotlinx.parcelize.Parcelize
 
-enum class Permission {
-    Camera,
-    ReadFiles
+@Parcelize
+sealed interface Permission: Parcelable {
+    fun toManifestString(): String
+
+    @Parcelize
+    object Camera: Permission {
+        override fun toManifestString(): String {
+            return android.Manifest.permission.CAMERA
+        }
+    }
+
+    @Parcelize
+    object ReadFiles: Permission {
+        override fun toManifestString(): String {
+            return android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+    }
 }
 
 enum class PermissionResult {
     Granted,
-    DeniedForeverCloseApp
+    DeniedForeverAndCanceled
 }
 
 @Parcelize
@@ -37,6 +51,7 @@ fun RequestPermissions(
     rationalText: String,
     deniedTitle: String,
     deniedText: String,
+    deniedDismissButtonText: String,
     onResult: (PermissionResult) -> Unit
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -62,8 +77,9 @@ fun RequestPermissions(
                     icon = icon,
                     title = deniedTitle,
                     text = deniedText,
+                    dismissButtonText = deniedDismissButtonText,
                     onCloseApp = {
-                        onResult(PermissionResult.DeniedForeverCloseApp)
+                        onResult(PermissionResult.DeniedForeverAndCanceled)
                     }
                 )
             }

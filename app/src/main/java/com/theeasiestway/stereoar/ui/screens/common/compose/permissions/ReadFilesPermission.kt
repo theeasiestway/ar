@@ -20,16 +20,18 @@ fun ReadFilesPermission(
     rationalText: String,
     deniedTitle: String,
     deniedText: String,
+    deniedDismissButtonText: String,
     onResult: (PermissionResult) -> Unit
 ) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
         RequestPermissions(
             icon = icon,
-            permission = android.Manifest.permission.READ_EXTERNAL_STORAGE,
+            permission = Permission.ReadFiles.toManifestString(),
             rationalTitle = rationalTitle,
             rationalText = rationalText,
             deniedTitle = deniedTitle,
             deniedText = deniedText,
+            deniedDismissButtonText = deniedDismissButtonText,
             onResult = onResult
         )
     } else {

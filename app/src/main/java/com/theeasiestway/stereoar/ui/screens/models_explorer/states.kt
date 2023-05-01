@@ -4,8 +4,8 @@ import com.theeasiestway.domain.model.FilesTree
 import java.io.File
 
 data class State(
-    val isLoading: Boolean = false,
-    val permissionsGranted: Boolean = false,
+    val isLoading: Boolean = true,
+    val requestPermissions: Boolean = false,
     val files: FilesTree = FilesTree(
         rootPath = "",
         internalStorageRootPath = "",
@@ -19,7 +19,8 @@ data class State(
 )
 
 data class UiState(
-    val permissionsGranted: Boolean = false,
+    val isLoading: Boolean = true,
+    val requestPermissions: Boolean = false,
     val pages: List<PagerPage> = emptyList(),
     val showOptions: Boolean = false
 )

@@ -9,7 +9,11 @@ sealed interface ModelUri: Parcelable {
     val uri: String
 
     @Parcelize
-    data class File(override val uri: String): ModelUri
+    data class File(override val uri: String): ModelUri {
+        fun getFileName(): String {
+            return uri.substringAfterLast("/")
+        }
+    }
     @Parcelize
     data class Url(override val uri: String) : ModelUri
 }

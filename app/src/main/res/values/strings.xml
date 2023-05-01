@@ -11,6 +11,14 @@
     <string name="general_file">File</string>
     <string name="general_folder">Folder</string>
     <string name="general_empty">Empty</string>
+    <plurals name="general_files_count">
+        <item quantity="one">File</item>
+        <item quantity="two">Files</item>
+        <item quantity="few">Files</item>
+        <item quantity="many">Files</item>
+        <item quantity="zero">Files</item>
+        <item quantity="other">File</item>
+    </plurals>
 
     <string name="ar_view_turn_on_vr_mode">Vr On</string>
     <string name="ar_view_turn_off_vr_mode">Vr Off</string>
@@ -20,34 +28,33 @@
     <string name="ar_view_rotation_axis_x">X</string>
     <string name="ar_view_rotation_axis_y">Y</string>
     <string name="ar_view_rotation_axis_z">Z</string>
+    <string name="choose_ar_model_favorite_models">Favorite Models</string>
+    <string name="error_start_ar_view">Opps something went wrong, try to restart the app</string>
+    <string name="error_loading_ar_model">Failed to load AR model</string>
 
-    <!--  Choose Model  -->
+    <!--  Models Explorer  -->
     <string name="models_explorer_title">Files Explorer</string>
     <string name="models_collection_title">Models Collection</string>
     <string name="models_explorer_storage">Storage</string>
     <string name="models_explorer_internal_storage">Internal Storage</string>
     <string name="models_explorer_sd_card">SD Card</string>
-    <string name="choose_ar_model_favorite_models">Favorite Models</string>
-    <plurals name="models_explorer_files_count">
-        <item quantity="one">File</item>
-        <item quantity="two">Files</item>
-        <item quantity="few">Files</item>
-        <item quantity="many">Files</item>
-        <item quantity="zero">Files</item>
-        <item quantity="other">File</item>
-    </plurals>
+    <string name="models_explorer_error_loading_files">Unable to load files, please check files permissions</string>
+    <string name="models_explorer_error_opening_file_or_folder">Unable to open %1$s, please check files permissions</string>
 
-    <!--  Permissions  -->
-    <string name="permission_storage_rational_title">File Storage Access</string>
-    <string name="permission_storage_rational_text">This application needs access to the file storage to load and save AR models</string>
-    <string name="permission_storage_denied_text">This application needs access to the file storage to load and save AR models you can grant it in the application settings</string>
-    <string name="permission_camera_request_title_text">Camera Access</string>
-    <string name="permission_camera_request_body_text">For displaying AR models in augmented reality this application needs access to camera</string>
-    <string name="permission_camera_request_denied_title_text">For displaying AR models in augmented reality this application needs access to camera you can grant it in the application settings</string>
+    <!--  Model View  -->
+    <string name="model_view_model_saved_to_collection">Model has been saved to collection with name "%s"</string>
+    <string name="model_view_model_removed_from_collection">Model "%s" has been removed from collection</string>
+    <string name="model_view_error_loading_model">Failed to load AR model</string>
+    <string name="model_view_error_save_model_to_collection">Failed to save model to collection</string>
+    <string name="model_view_error_remove_model_from_collection">Failed to remove model from collection</string>
 
-    <!--  Errors  -->
-    <string name="error_loading_models_explorer">Unable to load files, please check files permissions</string>
-    <string name="error_opening_file_or_folder">Unable to open %1$s, please check files permissions</string>
-    <string name="error_start_ar_view">Opps something went wrong, try to restart the app</string>
-    <string name="error_loading_ar_model">Failed to load AR model</string>
+    <!-- Files Permission  -->
+    <string name="files_permission_rational_title">File Storage Access</string>
+    <string name="files_permission_rational_text">Application needs file storage access to load and save AR models</string>
+    <string name="files_permission_denied_text">Application needs file storage access to load and save AR models you can grant it in application settings</string>
+
+    <!--  Camera Permission  -->
+    <string name="camera_permission_rational_title">Camera Access</string>
+    <string name="camera_permission_rational_text">Application needs camera access to display AR models in augmented reality</string>
+    <string name="camera_permission_denied_text">Application needs camera access to display AR models in augmented reality you can grant it in application settings</string>
 </resources>

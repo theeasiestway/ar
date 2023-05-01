@@ -26,6 +26,8 @@ import com.ramcosta.composedestinations.spec.Route
 import com.theeasiestway.stereoar.ui.screens.NavGraph
 import com.theeasiestway.stereoar.ui.screens.NavGraphs
 import com.theeasiestway.stereoar.ui.screens.appCurrentDestinationAsState
+import com.theeasiestway.stereoar.ui.screens.destinations.Destination
+import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.model_view.modelViewScreenFactory
 import com.theeasiestway.stereoar.ui.screens.models_explorer.modelsExplorerScreenFactory
 import com.theeasiestway.stereoar.ui.screens.startAppDestination
@@ -57,7 +59,6 @@ fun AppScaffold(
     navController.navigatorProvider += bottomSheetNavigator
 
     val destination = navController.appCurrentDestinationAsState().value ?: startRoute.startAppDestination
-    val coroutineScope = rememberCoroutineScope()
     val snackBarHostState = remember { SnackbarHostState() }
     val topBarActionsClickListener by remember {
         mutableStateOf(
@@ -80,8 +81,10 @@ fun AppScaffold(
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackBarHostState) },
             topBar = {
-                TopBar(destination = destination) { action ->
-                    topBarActionsClickListener.tryEmit(action)
+                if (destination.needsTopBar()) {
+                    TopBar(destination = destination) { action ->
+                        topBarActionsClickListener.tryEmit(action)
+                    }
                 }
             },
         ) { paddingValues ->
@@ -98,9 +101,16 @@ fun AppScaffold(
                     onCloseApp = onCloseApp
                 )
                 modelViewScreenFactory(
-                    topBarActionsClickListener = topBarActionsClickListener
+                    snackBarHostState = snackBarHostState
                 )
             }
         }
+    }
+}
+
+private fun Destination.needsTopBar(): Boolean {
+    return when(this) {
+        is ModelViewScreenDestination -> false
+        else -> true
     }
 }

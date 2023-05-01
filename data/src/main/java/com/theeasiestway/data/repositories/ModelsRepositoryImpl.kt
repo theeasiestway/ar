@@ -2,26 +2,32 @@ package com.theeasiestway.data.repositories
 
 import android.content.Context
 import android.net.Uri
+import androidx.annotation.MainThread
 import com.google.ar.sceneform.rendering.ModelRenderable
+import com.theeasiestway.data.R
+import com.theeasiestway.data.mappers.toUri
 import com.theeasiestway.domain.exceptions.LoadArModelException
 import com.theeasiestway.domain.repositories.ModelsRepository
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class ModelsRepositoryImpl(
-    context: Context,
-    private val dispatcher: CoroutineDispatcher
+    context: Context
 ): ModelsRepository<ModelRenderable> {
 
     private val context = context.applicationContext
+    private val footPrintModel: ModelRenderable? = null
 
     @Throws(Exception::class)
+    @MainThread // ARCore requirement
     override suspend fun loadModel(modelUri: String): ModelRenderable? {
-        return withContext(dispatcher) {
-            tryToLoad(modelUri)
-        }
+        return tryToLoad(modelUri)
+    }
+
+    @MainThread // ARCore requirement
+    override suspend fun loadFootPrintModel(): ModelRenderable {
+        return footPrintModel ?: loadModel(R.raw.sceneform_footprint.toUri(context.resources))!!
     }
 
     private suspend fun tryToLoad(modelUri: String, isFilament: Boolean = true): ModelRenderable? {
@@ -51,7 +57,7 @@ class ModelsRepositoryImpl(
                 }
                 .exceptionally { exception ->
                     val error = LoadArModelException("Error loading AR model from uri: $modelUri", exception)
-                    continuation.resume(Result.failure(error))
+                    continuation.resumeWithException(error)
                     null
                 }
         }

@@ -15,8 +15,7 @@ val modelViewModule = module {
     scope(named(modelViewScopeId)) {
         scoped<ModelsRepository<ModelRenderable>> {
             ModelsRepositoryImpl(
-                context = androidContext(),
-                dispatcher = get(named(ioDispatcher))
+                context = androidContext()
             )
         }
     }
@@ -26,7 +25,8 @@ val modelViewModule = module {
         ModelViewViewModel(
             modelsRepository = scope.get(),
             filesRepository = get(),
-            dispatcher = get(named(ioDispatcher))
+            dispatcherIO = get(named(ioDispatcher)),
+            dispatcherMain = get(named(mainDispatcher))
         )
     }
 }

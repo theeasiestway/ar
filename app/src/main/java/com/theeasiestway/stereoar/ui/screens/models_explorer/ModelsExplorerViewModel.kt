@@ -32,11 +32,12 @@ class ModelsExplorerViewModel(
 ): ContainerHost<State, ModelsExplorerViewModel.SideEffect>, ViewModel(), KoinComponent {
 
     override val container = container<State, SideEffect>(State()) {
-        postSideEffect(SideEffect.RequestPermissions)
+        handleIntent(Intent.RequestPermissions)
     }
     val uiState = state.map { it.toUiState() }
 
     sealed interface Intent {
+        object RequestPermissions: Intent
         data class HandlePermissionResult(val result: PermissionResult): Intent
         data class HandleTopBarActionClick(val action: TopBarAction): Intent
         object LoadData: Intent
@@ -48,6 +49,7 @@ class ModelsExplorerViewModel(
     }
 
     sealed interface Event {
+        object RequestPermissions: Event
         data class DataLoading(val isLoading: Boolean): Event
         data class DataLoaded(
             val files: FilesTree,
@@ -58,7 +60,6 @@ class ModelsExplorerViewModel(
     }
 
     sealed interface SideEffect {
-        object RequestPermissions: SideEffect
         object CloseApp: SideEffect
         data class OpenModelScreen(val modelUri: ModelUri): SideEffect
         object ErrorLoadingData: SideEffect
@@ -75,6 +76,7 @@ class ModelsExplorerViewModel(
 
     private fun actor(state: State, intent: Intent): Flow<Event> {
         return when(intent) {
+            is Intent.RequestPermissions -> requestPermissions()
             is Intent.HandlePermissionResult -> handlePermissionResult(result = intent.result)
             is Intent.HandleTopBarActionClick -> handleTopBarActionClick(action = intent.action)
             is Intent.LoadData -> loadData()
@@ -86,10 +88,14 @@ class ModelsExplorerViewModel(
         }
     }
 
+    private fun requestPermissions() = flow<Event> {
+        emit(Event.RequestPermissions)
+    }
+
     private fun handlePermissionResult(result: PermissionResult): Flow<Event> {
         return when(result) {
             PermissionResult.Granted -> loadData()
-            PermissionResult.DeniedForeverCloseApp -> {
+            PermissionResult.DeniedForeverAndCanceled -> {
                 postSideEffect(SideEffect.CloseApp)
                 emptyFlow()
             }
@@ -176,9 +182,12 @@ class ModelsExplorerViewModel(
 
     private fun reduce(state: State, event: Event): State {
         return when(event) {
+            is Event.RequestPermissions -> state.copy(
+                requestPermissions = true
+            )
             is Event.DataLoaded -> state.copy(
                 isLoading = false,
-                permissionsGranted = true,
+                requestPermissions = false,
                 files = event.files,
                 collectedModels = event.collectedModels
             )
@@ -198,7 +207,8 @@ class ModelsExplorerViewModel(
 
 private fun State.toUiState(): UiState {
     return UiState(
-        permissionsGranted = permissionsGranted,
+        isLoading = isLoading,
+        requestPermissions = requestPermissions,
         pages = toPages(),
         showOptions = showOptions
     )
@@ -225,7 +235,7 @@ private fun FilesTree.toDisplayablePath(): DisplayablePath {
         isRoot -> DisplayablePath.Root
         isExternalStorage -> {
             DisplayablePath.ExternalStorage(
-                path = currentPath.split(externalStorageRootPath!!, ignoreCase = true)[1]
+                path = currentPath.split(externalStorageRootPath!!, ignoreCase = true)[1] // todo move this logic to FileRepository
             )
         }
         else -> DisplayablePath.InternalStorage(

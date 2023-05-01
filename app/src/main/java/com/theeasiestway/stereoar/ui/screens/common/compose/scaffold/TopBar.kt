@@ -3,7 +3,7 @@ package com.theeasiestway.stereoar.ui.screens.common.compose.scaffold
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import com.theeasiestway.stereoar.R
-import com.theeasiestway.stereoar.ui.screens.common.compose.images.ImageDrawable
+import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.TopBarButton
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.TitleMedium
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource
 import com.theeasiestway.stereoar.ui.screens.destinations.Destination
@@ -42,11 +42,11 @@ enum class TopBarAction {
 private fun Destination.toActions(onActionClick: (TopBarAction) -> Unit) {
     when(this) {
         is ModelsExplorerScreenDestination -> {
-            IconButton(onClick = { onActionClick(TopBarAction.More) }) {
-                ImageDrawable(
-                    resId = R.drawable.ic_more,
-                    tint = AppTheme.colors.white
-                )
+            TopBarButton(
+                icon = R.drawable.ic_more,
+                tint = AppTheme.colors.surface
+            ) {
+                onActionClick(TopBarAction.More)
             }
         }
         else -> {}

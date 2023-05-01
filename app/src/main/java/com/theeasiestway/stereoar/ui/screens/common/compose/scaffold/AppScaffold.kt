@@ -26,6 +26,7 @@ import com.ramcosta.composedestinations.spec.Route
 import com.theeasiestway.stereoar.ui.screens.NavGraph
 import com.theeasiestway.stereoar.ui.screens.NavGraphs
 import com.theeasiestway.stereoar.ui.screens.appCurrentDestinationAsState
+import com.theeasiestway.stereoar.ui.screens.model_view.modelViewScreenFactory
 import com.theeasiestway.stereoar.ui.screens.models_explorer.modelsExplorerScreenFactory
 import com.theeasiestway.stereoar.ui.screens.startAppDestination
 import com.theeasiestway.stereoar.ui.theme.AppTheme
@@ -95,6 +96,9 @@ fun AppScaffold(
                     snackBarHostState = snackBarHostState,
                     topBarActionsClickListener = topBarActionsClickListener,
                     onCloseApp = onCloseApp
+                )
+                modelViewScreenFactory(
+                    topBarActionsClickListener = topBarActionsClickListener
                 )
             }
         }

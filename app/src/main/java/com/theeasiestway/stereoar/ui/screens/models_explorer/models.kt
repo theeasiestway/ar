@@ -1,6 +1,18 @@
 package com.theeasiestway.stereoar.ui.screens.models_explorer
 
+import android.os.Parcelable
 import com.theeasiestway.domain.model.CollectedModel
+import kotlinx.parcelize.Parcelize
+
+@Parcelize
+sealed interface ModelUri: Parcelable {
+    val uri: String
+
+    @Parcelize
+    data class File(override val uri: String): ModelUri
+    @Parcelize
+    data class Url(override val uri: String) : ModelUri
+}
 
 sealed interface DisplayablePath {
     object Root: DisplayablePath

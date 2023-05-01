@@ -23,6 +23,10 @@ val modelViewModule = module {
 
     viewModel {
         val scope = getScope(modelViewScopeId)
-        ModelViewViewModel(modelsRepository = scope.get())
+        ModelViewViewModel(
+            modelsRepository = scope.get(),
+            filesRepository = get(),
+            dispatcher = get(named(ioDispatcher))
+        )
     }
 }

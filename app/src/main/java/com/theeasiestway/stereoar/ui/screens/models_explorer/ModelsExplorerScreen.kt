@@ -33,7 +33,6 @@ import com.ramcosta.composedestinations.scope.resultRecipient
 import com.theeasiestway.domain.model.CollectedModel
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.is24TimeFormatQualifier
-import com.theeasiestway.stereoar.di.modelsExplorerScopeId
 import com.theeasiestway.stereoar.ui.screens.common.compose.images.ImageDrawable
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.Permission
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.RequestPermissionResult
@@ -41,7 +40,6 @@ import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBarActio
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.*
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource
 import com.theeasiestway.stereoar.ui.screens.common.ext.showSnackBar
-import com.theeasiestway.stereoar.ui.screens.common.koin.createScopeIfNull
 import com.theeasiestway.stereoar.ui.screens.common.onSideEffect
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelsExplorerScreenDestination
@@ -65,7 +63,6 @@ fun ManualComposableCallsBuilder.modelsExplorerScreenFactory(
     onCloseApp: () -> Unit
 ) {
     composable(ModelsExplorerScreenDestination) {
-        createScopeIfNull(scopeId = modelsExplorerScopeId)
         ModelsExplorerScreen(
             snackBarHostState = snackBarHostState,
             navigator = destinationsNavigator,
@@ -100,8 +97,8 @@ fun ModelsExplorerScreen(
     }
 
     LaunchedEffect(Unit) {
-        topBarActionsClickListener.collect {
-            viewModel.handleIntent(Intent.ShowOptions)
+        topBarActionsClickListener.collect { action ->
+            viewModel.handleIntent(Intent.HandleTopBarActionClick(action))
         }
     }
 
@@ -134,7 +131,7 @@ fun ModelsExplorerScreen(
                 )
             }
             is SideEffect.OpenModelScreen -> {
-                navigator.navigate(ModelViewScreenDestination)
+                navigator.navigate(ModelViewScreenDestination(effect.modelUri))
             }
             is SideEffect.CloseApp -> {
                 onCloseApp()

@@ -7,6 +7,7 @@ import com.theeasiestway.stereoar.ui.screens.common.compose.images.ImageDrawable
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.TitleMedium
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource
 import com.theeasiestway.stereoar.ui.screens.destinations.Destination
+import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelsExplorerScreenDestination
 import com.theeasiestway.stereoar.ui.screens.destinations.RequestFilesPermissionScreenDestination
 import com.theeasiestway.stereoar.ui.theme.AppTheme
@@ -56,6 +57,7 @@ private fun Destination.toActions(onActionClick: (TopBarAction) -> Unit) {
 private fun Destination.toText(): String {
     return when(this) {
         is ModelsExplorerScreenDestination,
+        is ModelViewScreenDestination,
         is RequestFilesPermissionScreenDestination -> R.string.app_name.resource()
         else -> TODO()
     }

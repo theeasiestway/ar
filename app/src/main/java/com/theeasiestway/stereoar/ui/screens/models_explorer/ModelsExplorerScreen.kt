@@ -28,8 +28,6 @@ import com.ramcosta.composedestinations.annotation.RootNavGraph
 import com.ramcosta.composedestinations.manualcomposablecalls.ManualComposableCallsBuilder
 import com.ramcosta.composedestinations.manualcomposablecalls.composable
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import com.ramcosta.composedestinations.result.ResultRecipient
-import com.ramcosta.composedestinations.scope.resultRecipient
 import com.theeasiestway.domain.model.CollectedModel
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.is24TimeFormatQualifier
@@ -37,7 +35,6 @@ import com.theeasiestway.stereoar.ui.screens.common.compose.images.ImageDrawable
 import com.theeasiestway.stereoar.ui.screens.common.compose.modifiers.shimmerEffect
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.ReadFilesPermission
-import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.RequestPermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBarAction
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.*
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource
@@ -45,7 +42,6 @@ import com.theeasiestway.stereoar.ui.screens.common.ext.showSnackBar
 import com.theeasiestway.stereoar.ui.screens.common.onSideEffect
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelsExplorerScreenDestination
-import com.theeasiestway.stereoar.ui.screens.destinations.RequestFilesPermissionScreenDestination
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelsExplorerViewModel.Intent
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelsExplorerViewModel.SideEffect
 import com.theeasiestway.stereoar.ui.theme.AppTheme
@@ -69,7 +65,6 @@ fun ManualComposableCallsBuilder.modelsExplorerScreenFactory(
             snackBarHostState = snackBarHostState,
             navigator = destinationsNavigator,
             topBarActionsClickListener = topBarActionsClickListener,
-            requestPermissionHandler = resultRecipient(),
             onCloseApp = onCloseApp
         )
     }
@@ -83,7 +78,6 @@ fun ModelsExplorerScreen(
     navigator: DestinationsNavigator,
     topBarActionsClickListener: Flow<TopBarAction>,
     onCloseApp: () -> Unit,
-    requestPermissionHandler: ResultRecipient<RequestFilesPermissionScreenDestination, RequestPermissionResult>
 ) {
     val viewModel: ModelsExplorerViewModel = koinViewModel()
     val uiState = viewModel.uiState.collectAsState(initial = UiState()).value

@@ -8,8 +8,8 @@ import com.theeasiestway.domain.repositories.ModelsRepository
 import com.theeasiestway.stereoar.di.modelViewScopeId
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.koin.closeScope
-import com.theeasiestway.stereoar.ui.screens.common.postSideEffect
-import com.theeasiestway.stereoar.ui.screens.common.state
+import com.theeasiestway.stereoar.ui.screens.common.ext.postSideEffect
+import com.theeasiestway.stereoar.ui.screens.common.ext.state
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelUri
 import com.theeasiestway.stereoar.ui.screens.models_explorer.toFileUri
 import kotlinx.coroutines.CoroutineDispatcher

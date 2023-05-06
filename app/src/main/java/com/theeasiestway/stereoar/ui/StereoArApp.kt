@@ -1,4 +1,4 @@
-package com.theeasiestway.stereoar.ui.screens.arview
+package com.theeasiestway.stereoar.ui
 
 import androidx.compose.runtime.Composable
 import com.theeasiestway.stereoar.ui.screens.NavGraphs

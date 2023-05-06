@@ -1,4 +1,4 @@
-package com.theeasiestway.stereoar.ui.screens.common
+package com.theeasiestway.stereoar.ui.screens.common.ext
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect

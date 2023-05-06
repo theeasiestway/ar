@@ -8,8 +8,8 @@ import com.theeasiestway.domain.repositories.FilesRepository
 import com.theeasiestway.domain.repositories.SettingsRepository
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBarAction
-import com.theeasiestway.stereoar.ui.screens.common.postSideEffect
-import com.theeasiestway.stereoar.ui.screens.common.state
+import com.theeasiestway.stereoar.ui.screens.common.ext.postSideEffect
+import com.theeasiestway.stereoar.ui.screens.common.ext.state
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async

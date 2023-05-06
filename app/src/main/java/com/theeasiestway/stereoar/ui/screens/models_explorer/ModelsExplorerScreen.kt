@@ -39,7 +39,7 @@ import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBarActio
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.*
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource
 import com.theeasiestway.stereoar.ui.screens.common.ext.showSnackBar
-import com.theeasiestway.stereoar.ui.screens.common.onSideEffect
+import com.theeasiestway.stereoar.ui.screens.common.ext.onSideEffect
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelsExplorerScreenDestination
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelsExplorerViewModel.Intent

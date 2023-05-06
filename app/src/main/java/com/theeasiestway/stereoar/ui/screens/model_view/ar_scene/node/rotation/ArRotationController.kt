@@ -1,4 +1,4 @@
-package com.theeasiestway.stereoar.tools.node.rotation
+package com.theeasiestway.stereoar.ui.screens.model_view.ar_scene.node.rotation
 
 import com.google.ar.sceneform.math.Quaternion
 import com.google.ar.sceneform.ux.BaseTransformableNode

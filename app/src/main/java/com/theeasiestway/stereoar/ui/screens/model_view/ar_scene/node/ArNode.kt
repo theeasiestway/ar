@@ -1,8 +1,8 @@
-package com.theeasiestway.stereoar.tools.node
+package com.theeasiestway.stereoar.ui.screens.model_view.ar_scene.node
 
 import com.google.ar.sceneform.ux.TransformableNode
 import com.google.ar.sceneform.ux.TransformationSystem
-import com.theeasiestway.stereoar.tools.node.rotation.ArRotationController
+import com.theeasiestway.stereoar.ui.screens.model_view.ar_scene.node.rotation.ArRotationController
 
 /**
  * Created by Alexey Loboda on 09.07.2022

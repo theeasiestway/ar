@@ -3,7 +3,7 @@ package com.theeasiestway.stereoar.activity
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import com.theeasiestway.stereoar.ui.screens.arview.StereoArApp
+import com.theeasiestway.stereoar.ui.StereoArApp
 
 /**
  * Created by Alexey Loboda on 17.01.2022

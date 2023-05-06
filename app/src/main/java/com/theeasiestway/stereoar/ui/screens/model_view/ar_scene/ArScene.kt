@@ -13,7 +13,7 @@ import com.google.ar.sceneform.Camera
 import com.google.ar.sceneform.rendering.ModelRenderable
 import com.google.ar.sceneform.ux.FootprintSelectionVisualizer
 import com.google.ar.sceneform.ux.TransformationSystem
-import com.theeasiestway.stereoar.tools.node.ArNode
+import com.theeasiestway.stereoar.ui.screens.model_view.ar_scene.node.ArNode
 
 private const val anchorNodeName = "anchorNode"
 private const val modelNodeName = "modelNode"

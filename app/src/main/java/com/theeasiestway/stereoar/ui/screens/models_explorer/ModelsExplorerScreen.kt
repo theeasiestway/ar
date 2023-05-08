@@ -403,7 +403,7 @@ private fun FileListItem(
     when(file) {
         is FileItem.Root -> {
             icon = if (file.isExternalStorage) R.drawable.ic_sd_card else R.drawable.ic_storage
-            tint = AppTheme.colors.accent
+            tint = AppTheme.colors.primaryDark
             title = if (file.isExternalStorage) R.string.models_explorer_sd_card.resource() else R.string.models_explorer_internal_storage.resource()
             subtitle = null
             isFolder = true
@@ -421,7 +421,7 @@ private fun FileListItem(
                 is FileItem.NotRoot.Folder -> {
                     val filesLabel = context.resources.getQuantityString(R.plurals.general_files_count, file.filesCount)
                     icon = R.drawable.ic_folder
-                    tint = AppTheme.colors.accent
+                    tint = AppTheme.colors.primaryDark
                     title = file.title
                     subtitle = "${file.filesCount} $filesLabel".plus(if (creationDate != null) " | $creationDate" else "")
                     isFolder = true

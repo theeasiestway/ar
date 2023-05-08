@@ -20,10 +20,10 @@ data class ColorSystem(
 fun getColorSystem(isDarkMode: Boolean): ColorSystem {
     return if (isDarkMode) {
         ColorSystem(
-            accent = Color(0xFF4CAF50),
-            primary = Color(0xFF673AB7),
-            primaryDark = Color(0xFF512DA8),
-            primaryLight = Color(0xFFD1C4E9),
+            accent = Color(0xFF536DFE),
+            primary = Color(0xFF4CAF50),
+            primaryDark = Color(0xFF388E3C),
+            primaryLight = Color(0xFFC8E6C9),
             surface = Color(0xFFFFFFFF),
             primaryText = Color(0xFF212121),
             secondaryText = Color(0xFF757575),
@@ -32,10 +32,10 @@ fun getColorSystem(isDarkMode: Boolean): ColorSystem {
         )
     } else {
         ColorSystem(
-            accent = Color(0xFF4CAF50),
-            primary = Color(0xFF673AB7),
-            primaryDark = Color(0xFF512DA8),
-            primaryLight = Color(0xFFD1C4E9),
+            accent = Color(0xFF536DFE),
+            primary = Color(0xFF4CAF50),
+            primaryDark = Color(0xFF388E3C),
+            primaryLight = Color(0xFFC8E6C9),
             surface = Color(0xFF757575),
             primaryText = Color(0xFFFFFFFF),
             secondaryText = Color(0xFFBDBDBD),

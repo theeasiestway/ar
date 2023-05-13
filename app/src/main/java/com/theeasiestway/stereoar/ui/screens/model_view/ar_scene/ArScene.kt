@@ -5,6 +5,7 @@ import android.util.DisplayMetrics
 import android.view.GestureDetector
 import android.view.MotionEvent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.ar.core.*
@@ -18,6 +19,7 @@ import com.theeasiestway.stereoar.ui.screens.model_view.ar_scene.node.ArNode
 private const val anchorNodeName = "anchorNode"
 private const val modelNodeName = "modelNode"
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ArScene(
     state: ArSceneState,
@@ -40,14 +42,20 @@ fun ArScene(
                 setupSession(createSession(context))
             }
         },
-        update = { arSceneView ->
-            arSceneView.resume()
+        update = { sceneView ->
+            sceneView.resume()
             when {
                 state.clearScene -> {
-                    arSceneView.clearScene()
+                    sceneView.clearScene()
                     onSceneCleared()
                 }
             }
+        },
+        onReset = {},
+        onRelease = { sceneView ->
+            sceneView.clearScene()
+            sceneView.pause()
+            sceneView.session?.close()
         }
     )
 }

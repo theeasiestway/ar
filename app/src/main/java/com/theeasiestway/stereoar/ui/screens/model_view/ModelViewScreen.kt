@@ -1,7 +1,10 @@
 package com.theeasiestway.stereoar.ui.screens.model_view
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -9,6 +12,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -21,12 +25,13 @@ import com.theeasiestway.domain.repositories.DownloadsRepository
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.modelViewScopeId
 import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.TopBarButton
+import com.theeasiestway.stereoar.ui.screens.common.compose.custom.BubblesEffect
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.RequestCameraPermission
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource
 import com.theeasiestway.stereoar.ui.screens.common.ext.showSnackBar
 import com.theeasiestway.stereoar.ui.screens.common.koin.createScopeIfNull
-import com.theeasiestway.stereoar.ui.screens.common.onSideEffect
+import com.theeasiestway.stereoar.ui.screens.common.ext.onSideEffect
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.model_view.ModelViewViewModel.Intent
 import com.theeasiestway.stereoar.ui.screens.model_view.ModelViewViewModel.SideEffect
@@ -210,16 +215,18 @@ private fun ShimmeredScene() {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopEnd
     ) {
-        ShimmeredArScene()
+        BubblesEffect(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .systemBarsPadding()
+                .navigationBarsPadding(),
+            bubblesCount = 20
+        )
         TopBarButton(
             icon = R.drawable.ic_more,
             tint = AppTheme.colors.surface,
             onClick = {}
         )
     }
-}
-
-@Composable
-private fun ShimmeredArScene() {
-
 }

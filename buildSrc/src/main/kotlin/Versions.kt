@@ -8,7 +8,7 @@ object Versions {
     object Main {
         const val gradle = "7.4.0-beta05"
         const val kotlin = "1.8.10"
-        const val kotlinKtx = "1.10.0"
+        const val kotlinKtx = "1.9.0"
         const val kotlinCompilerExt = "1.4.4"
         const val jvmTarget = "1.8"
         val javaVersion = JavaVersion.VERSION_1_8

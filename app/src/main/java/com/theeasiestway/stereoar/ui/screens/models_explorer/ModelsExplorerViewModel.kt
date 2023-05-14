@@ -7,7 +7,6 @@ import com.theeasiestway.domain.model.FilesTree
 import com.theeasiestway.domain.repositories.FilesRepository
 import com.theeasiestway.domain.repositories.SettingsRepository
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
-import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBarAction
 import com.theeasiestway.stereoar.ui.screens.common.ext.postSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.ext.state
 import kotlinx.coroutines.CoroutineDispatcher
@@ -39,13 +38,13 @@ class ModelsExplorerViewModel(
     sealed interface Intent {
         object RequestPermissions: Intent
         data class HandlePermissionResult(val result: PermissionResult): Intent
-        data class HandleTopBarActionClick(val action: TopBarAction): Intent
+        object HandleTopBarActionClick: Intent
+        data class HandleOptionsClick(val option: ModelsExplorerOptions?): Intent
         object LoadData: Intent
         data class OpenFile(val file: FileItem): Intent
-        object ShowOptions: Intent
-        object GoBack: Intent
-        data class LoadModel(val url: String): Intent
+        data class LoadModel(val url: String?): Intent
         data class ShowModel(val model: CollectedModel): Intent
+        object GoBack: Intent
     }
 
     sealed interface Event {
@@ -56,13 +55,15 @@ class ModelsExplorerViewModel(
             val collectedModels: List<File>
         ): Event
         data class FolderOpened(val filesTree: FilesTree): Event
-        object ShowOptions: Event
+        data class ShowOptions(val show: Boolean): Event
+        data class DownloadModel(val show: Boolean): Event
     }
 
     sealed interface SideEffect {
         object CloseApp: SideEffect
         data class OpenModelScreen(val modelUri: ModelUri): SideEffect
         object ErrorLoadingData: SideEffect
+        object OpenAppSettings: SideEffect
         data class ErrorOpeningFile(val isFolder: Boolean): SideEffect
     }
 
@@ -78,13 +79,21 @@ class ModelsExplorerViewModel(
         return when(intent) {
             is Intent.RequestPermissions -> requestPermissions()
             is Intent.HandlePermissionResult -> handlePermissionResult(result = intent.result)
-            is Intent.HandleTopBarActionClick -> handleTopBarActionClick(action = intent.action)
+            is Intent.HandleTopBarActionClick -> handleTopBarActionClick()
+            is Intent.HandleOptionsClick -> handleOptionsClick(option = intent.option)
             is Intent.LoadData -> loadData()
             is Intent.OpenFile -> openFile(file = intent.file)
-            is Intent.LoadModel -> showModel(uri = intent.url, isFile = false)
+            is Intent.LoadModel -> downloadModel(url = intent.url)
             is Intent.ShowModel -> showModel(uri = intent.model.path, isFile = true)
-            is Intent.ShowOptions -> showOptions()
             is Intent.GoBack -> goBack(files = state.files)
+        }
+    }
+
+    private fun handleOptionsClick(option: ModelsExplorerOptions?) = flow {
+        when(option) {
+            ModelsExplorerOptions.DownloadModel -> emit(Event.DownloadModel(show = true))
+            ModelsExplorerOptions.AppSettings -> postSideEffect(SideEffect.OpenAppSettings)
+            null -> emit(Event.ShowOptions(show = false))
         }
     }
 
@@ -102,13 +111,8 @@ class ModelsExplorerViewModel(
         }
     }
 
-    private fun handleTopBarActionClick(action: TopBarAction): Flow<Event> {
-        return if (action == TopBarAction.More) showOptions()
-        else emptyFlow()
-    }
-
-    private fun showOptions() = flow<Event> {
-        emit(Event.ShowOptions)
+    private fun handleTopBarActionClick() = flow<Event> {
+        emit(Event.ShowOptions(show = true))
     }
 
     private fun goBack(files: FilesTree): Flow<Event> {
@@ -174,10 +178,19 @@ class ModelsExplorerViewModel(
         }
     }
 
+    private fun downloadModel(url: String?): Flow<Event> {
+        return if (url != null) {
+            showModel(url, false)
+        } else flow {
+            emit(Event.DownloadModel(show = false))
+        }
+    }
+
     private fun showModel(uri: String, isFile: Boolean) = flow<Event> {
         val modelUri = if (isFile) ModelUri.File(uri)
         else ModelUri.Url(uri)
         postSideEffect(SideEffect.OpenModelScreen(modelUri))
+        emit(Event.DownloadModel(show = false))
     }
 
     private fun reduce(state: State, event: Event): State {
@@ -199,7 +212,11 @@ class ModelsExplorerViewModel(
                 files = event.filesTree
             )
             is Event.ShowOptions -> state.copy(
-                showOptions = true
+                showOptions = event.show
+            )
+            is Event.DownloadModel -> state.copy(
+                showDownloadModel = event.show,
+                showOptions = false
             )
         }
     }
@@ -210,7 +227,8 @@ private fun State.toUiState(): UiState {
         isLoading = isLoading,
         requestPermissions = requestPermissions,
         pages = toPages(),
-        showOptions = showOptions
+        showOptions = showOptions,
+        showDownloadModel = showDownloadModel
     )
 }
 

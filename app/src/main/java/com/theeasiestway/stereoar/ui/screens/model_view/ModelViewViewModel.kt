@@ -7,9 +7,9 @@ import com.theeasiestway.domain.repositories.FilesRepository
 import com.theeasiestway.domain.repositories.ModelsRepository
 import com.theeasiestway.stereoar.di.modelViewScopeId
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
-import com.theeasiestway.stereoar.ui.screens.common.koin.closeScope
 import com.theeasiestway.stereoar.ui.screens.common.ext.postSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.ext.state
+import com.theeasiestway.stereoar.ui.screens.common.koin.closeScope
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelUri
 import com.theeasiestway.stereoar.ui.screens.models_explorer.toFileUri
 import kotlinx.coroutines.CoroutineDispatcher
@@ -46,15 +46,16 @@ class ModelViewViewModel(
             val modelUri: ModelUri
         ): Intent
         object HandleTopBarActionClick: Intent
+        data class HandleOptionsClick(val option: ModelViewOptions?): Intent
         object HandleClearScene: Intent
-        data class SaveToCollection(val modelUri: ModelUri): Intent
         data class RemoveFromCollection(val modelUri: ModelUri.File): Intent
     }
 
     sealed interface Event {
         object RequestPermissions: Event
-        object ShowOptions: Event
+        data class ShowOptions(val show: Boolean): Event
         data class ModelLoaded(
+            val modelUri: ModelUri,
             val footPrintModel: ModelRenderable,
             val model: ModelRenderable,
             val addedToCollection: Boolean
@@ -67,6 +68,7 @@ class ModelViewViewModel(
 
     sealed interface SideEffect {
         object CloseScreen: SideEffect
+        object OpenAppSettings: SideEffect
         data class SavedToCollection(val modelName: String): SideEffect
         data class RemovedFromCollection(val modelName: String): SideEffect
         object ErrorSaveToCollection: SideEffect
@@ -89,17 +91,9 @@ class ModelViewViewModel(
             is Intent.HandleClearScene -> handleClearScene()
             is Intent.HandleSceneCleared -> handleSceneCleared()
             is Intent.HandleTopBarActionClick -> handleTopBarActionClick()
-            is Intent.SaveToCollection -> saveToCollection(intent.modelUri)
+            is Intent.HandleOptionsClick -> handleOptionsClick(modelUri = state.modelUri, option = intent.option)
             is Intent.RemoveFromCollection -> removeFromCollection(intent.modelUri)
         }
-    }
-
-    private fun handleClearScene() = flow<Event> {
-        emit(Event.ClearScene)
-    }
-
-    private fun handleSceneCleared() = flow<Event> {
-        emit(Event.SceneCleared)
     }
 
     private fun requestPermissions() = flow<Event> {
@@ -119,11 +113,40 @@ class ModelViewViewModel(
         }
     }
 
-    private fun handleTopBarActionClick() = flow<Event> {
-        emit(Event.ShowOptions)
+    private fun handleClearScene() = flow<Event> {
+        emit(Event.ClearScene)
     }
 
-    private fun loadModel(modelUri: ModelUri, ) = flow<Event> {
+    private fun handleSceneCleared() = flow<Event> {
+        emit(Event.SceneCleared)
+    }
+
+    private fun handleTopBarActionClick() = flow<Event> {
+        emit(Event.ShowOptions(show = true))
+    }
+
+    private fun handleOptionsClick(
+        modelUri: ModelUri?,
+        option: ModelViewOptions?
+    ) = flow<Event> {
+        when(option) {
+            ModelViewOptions.AddToCollection -> modelUri?.let { saveToCollection(modelUri) }
+            ModelViewOptions.AppSettings -> postSideEffect(SideEffect.OpenAppSettings)
+            null -> emit(Event.ShowOptions(show = false))
+        }
+    }
+
+    private suspend fun saveToCollection(modelUri: ModelUri) {
+        try {
+            val savedName = filesRepository.saveModelToCollection(modelUri.toFileUri())
+            postSideEffect(SideEffect.SavedToCollection(savedName))
+        } catch (e: Throwable) {
+            e.printStackTrace()
+            postSideEffect(SideEffect.ErrorSaveToCollection)
+        }
+    }
+
+    private fun loadModel(modelUri: ModelUri) = flow<Event> {
         try {
             var collectedModelsDeferred: Deferred<List<String>>? = null
             var footPrintModelDeferred: Deferred<ModelRenderable?>? = null
@@ -144,6 +167,7 @@ class ModelViewViewModel(
             val model = modelDeferred!!.await()!!
             emit(
                 Event.ModelLoaded(
+                    modelUri = modelUri,
                     footPrintModel = footPrintModel,
                     model = model,
                     addedToCollection = collectedModels.contains(modelUri.uri)
@@ -152,16 +176,6 @@ class ModelViewViewModel(
         } catch (e: Throwable) {
             e.printStackTrace()
             postSideEffect(SideEffect.ErrorLoadingModel)
-        }
-    }
-
-    private fun saveToCollection(modelUri: ModelUri) = flow<Event> {
-        try {
-            val savedName = filesRepository.saveModelToCollection(modelUri.toFileUri())
-            postSideEffect(SideEffect.SavedToCollection(savedName))
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            postSideEffect(SideEffect.ErrorSaveToCollection)
         }
     }
 
@@ -181,12 +195,13 @@ class ModelViewViewModel(
                 requestPermissions = true
             )
             is Event.ShowOptions -> state.copy(
-                showOptions = true
+                showOptions = event.show
             )
             is Event.ModelLoaded -> state.copy(
                 isLoading = false,
                 requestPermissions = false,
                 addedToCollection = event.addedToCollection,
+                modelUri = event.modelUri,
                 footPrintModel = event.footPrintModel,
                 model = event.model
             )

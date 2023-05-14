@@ -4,13 +4,9 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavHostController
@@ -25,15 +21,9 @@ import com.ramcosta.composedestinations.animations.rememberAnimatedNavHostEngine
 import com.ramcosta.composedestinations.spec.Route
 import com.theeasiestway.stereoar.ui.screens.NavGraph
 import com.theeasiestway.stereoar.ui.screens.NavGraphs
-import com.theeasiestway.stereoar.ui.screens.appCurrentDestinationAsState
-import com.theeasiestway.stereoar.ui.screens.destinations.Destination
-import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.model_view.modelViewScreenFactory
 import com.theeasiestway.stereoar.ui.screens.models_explorer.modelsExplorerScreenFactory
-import com.theeasiestway.stereoar.ui.screens.startAppDestination
 import com.theeasiestway.stereoar.ui.theme.AppTheme
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
 
 @OptIn(
     ExperimentalMaterialNavigationApi::class,
@@ -58,17 +48,6 @@ fun AppScaffold(
     val bottomSheetNavigator = rememberBottomSheetNavigator()
     navController.navigatorProvider += bottomSheetNavigator
 
-    val destination = navController.appCurrentDestinationAsState().value ?: startRoute.startAppDestination
-    val snackBarHostState = remember { SnackbarHostState() }
-    val topBarActionsClickListener by remember {
-        mutableStateOf(
-            MutableSharedFlow<TopBarAction>(
-                extraBufferCapacity = 1,
-                onBufferOverflow = BufferOverflow.DROP_OLDEST
-            )
-        )
-    }
-
     ModalBottomSheetLayout(
         modifier = Modifier.systemBarsPadding(),
         scrimColor = Color.Black.copy(alpha = 0.4f),
@@ -78,39 +57,16 @@ fun AppScaffold(
             topEnd = AppTheme.shapes.extraLarge
         )
     ) {
-        Scaffold(
-            snackbarHost = { SnackbarHost(hostState = snackBarHostState) },
-            topBar = {
-                if (destination.needsTopBar()) {
-                    TopBar(destination = destination) { action ->
-                        topBarActionsClickListener.tryEmit(action)
-                    }
-                }
-            },
-        ) { paddingValues ->
-            DestinationsNavHost(
-                modifier = Modifier.padding(paddingValues),
-                engine = navHostEngine,
-                navController = navController,
-                navGraph = navGraph,
-                startRoute = startRoute
-            ) {
-                modelsExplorerScreenFactory(
-                    snackBarHostState = snackBarHostState,
-                    topBarActionsClickListener = topBarActionsClickListener,
-                    onCloseApp = onCloseApp
-                )
-                modelViewScreenFactory(
-                    snackBarHostState = snackBarHostState
-                )
-            }
+        DestinationsNavHost(
+            engine = navHostEngine,
+            navController = navController,
+            navGraph = navGraph,
+            startRoute = startRoute
+        ) {
+            modelsExplorerScreenFactory(
+                onCloseApp = onCloseApp
+            )
+            modelViewScreenFactory()
         }
-    }
-}
-
-private fun Destination.needsTopBar(): Boolean {
-    return when(this) {
-        is ModelViewScreenDestination -> false
-        else -> true
     }
 }

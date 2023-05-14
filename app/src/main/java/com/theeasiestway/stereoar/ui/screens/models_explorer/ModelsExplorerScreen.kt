@@ -2,6 +2,7 @@ package com.theeasiestway.stereoar.ui.screens.models_explorer
 
 import android.text.format.Formatter.formatFileSize
 import android.util.Log
+import android.util.Patterns
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootNavGraph
 import com.ramcosta.composedestinations.manualcomposablecalls.ManualComposableCallsBuilder
@@ -31,22 +33,25 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.theeasiestway.domain.model.CollectedModel
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.is24TimeFormatQualifier
+import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.PopupButton
+import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.TopBarButton
+import com.theeasiestway.stereoar.ui.screens.common.compose.custom.MenuContainer
+import com.theeasiestway.stereoar.ui.screens.common.compose.dialogs.InputDialog
 import com.theeasiestway.stereoar.ui.screens.common.compose.images.ImageDrawable
 import com.theeasiestway.stereoar.ui.screens.common.compose.modifiers.shimmerEffect
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.ReadFilesPermission
-import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBarAction
+import com.theeasiestway.stereoar.ui.screens.common.compose.scaffold.TopBar
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.*
+import com.theeasiestway.stereoar.ui.screens.common.ext.onSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource
 import com.theeasiestway.stereoar.ui.screens.common.ext.showSnackBar
-import com.theeasiestway.stereoar.ui.screens.common.ext.onSideEffect
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelsExplorerScreenDestination
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelsExplorerViewModel.Intent
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelsExplorerViewModel.SideEffect
 import com.theeasiestway.stereoar.ui.theme.AppTheme
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.get
 import org.koin.androidx.compose.koinViewModel
@@ -56,15 +61,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 fun ManualComposableCallsBuilder.modelsExplorerScreenFactory(
-    snackBarHostState: SnackbarHostState,
-    topBarActionsClickListener: Flow<TopBarAction>,
     onCloseApp: () -> Unit
 ) {
     composable(ModelsExplorerScreenDestination) {
         ModelsExplorerScreen(
-            snackBarHostState = snackBarHostState,
             navigator = destinationsNavigator,
-            topBarActionsClickListener = topBarActionsClickListener,
             onCloseApp = onCloseApp
         )
     }
@@ -74,15 +75,14 @@ fun ManualComposableCallsBuilder.modelsExplorerScreenFactory(
 @Destination
 @Composable
 fun ModelsExplorerScreen(
-    snackBarHostState: SnackbarHostState,
     navigator: DestinationsNavigator,
-    topBarActionsClickListener: Flow<TopBarAction>,
     onCloseApp: () -> Unit,
 ) {
     val viewModel: ModelsExplorerViewModel = koinViewModel()
     val uiState = viewModel.uiState.collectAsState(initial = UiState()).value
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val snackBarHostState = remember { SnackbarHostState() }
 
     val is24TimeFormat: Boolean = get(named(is24TimeFormatQualifier))
     val dateFormat by remember(is24TimeFormat) {
@@ -92,14 +92,21 @@ fun ModelsExplorerScreen(
         mutableStateOf(SimpleDateFormat(dateFormat, Locale.getDefault()))
     }
 
-    LaunchedEffect(Unit) {
-        topBarActionsClickListener.collect { action ->
-            viewModel.handleIntent(Intent.HandleTopBarActionClick(action))
-        }
-    }
-
     viewModel.onSideEffect { effect ->
         when(effect) {
+            is SideEffect.OpenModelScreen -> {
+                navigator.navigate(ModelViewScreenDestination(effect.modelUri))
+            }
+            is SideEffect.OpenAppSettings -> {
+                showSnackBar(
+                    coroutineScope = coroutineScope,
+                    snackBarHostState = snackBarHostState,
+                    message = "TODO"
+                )
+            }
+            is SideEffect.CloseApp -> {
+                onCloseApp()
+            }
             is SideEffect.ErrorLoadingData -> {
                 showSnackBar(
                     coroutineScope = coroutineScope,
@@ -117,41 +124,64 @@ fun ModelsExplorerScreen(
                     message = context.getString(R.string.models_explorer_error_opening_file_or_folder, fileOrFolder)
                 )
             }
-            is SideEffect.OpenModelScreen -> {
-                navigator.navigate(ModelViewScreenDestination(effect.modelUri))
-            }
-            is SideEffect.CloseApp -> {
-                onCloseApp()
-            }
         }
     }
-    Content(
-        uiState = uiState,
-        coroutineScope = coroutineScope,
-        dateFormatter = dateFormatter,
-        onRequestPermissionsResult = { result ->
-            viewModel.handleIntent(Intent.HandlePermissionResult(result))
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackBarHostState)
         },
-        onFileClick = { file ->
-            viewModel.handleIntent(Intent.OpenFile(file))
+        topBar = {
+            TopBar(
+                title = R.string.app_name.resource(),
+                actions = {
+                    TopBarButton(
+                        icon = R.drawable.ic_more,
+                        tint = AppTheme.colors.surface
+                    ) {
+                        viewModel.handleIntent(Intent.HandleTopBarActionClick)
+                    }
+                }
+            )
         },
-        onModelClick = { model ->
-            viewModel.handleIntent(Intent.ShowModel(model))
-        },
-        onBackClick = {
-            viewModel.handleIntent(Intent.GoBack)
-        }
-    )
+    ) { paddingValues ->
+        Content(
+            uiState = uiState,
+            modifier = Modifier.padding(paddingValues),
+            coroutineScope = coroutineScope,
+            dateFormatter = dateFormatter,
+            onRequestPermissionsResult = { result ->
+                viewModel.handleIntent(Intent.HandlePermissionResult(result))
+            },
+            onFileClick = { file ->
+                viewModel.handleIntent(Intent.OpenFile(file))
+            },
+            onModelClick = { model ->
+                viewModel.handleIntent(Intent.ShowModel(model))
+            },
+            onOptionsClick = { option ->
+                viewModel.handleIntent(Intent.HandleOptionsClick(option))
+            },
+            onDownloadModelResult = { url ->
+                viewModel.handleIntent(Intent.LoadModel(url))
+            },
+            onBackClick = {
+                viewModel.handleIntent(Intent.GoBack)
+            }
+        )
+    }
 }
 
 @Composable
 private fun Content(
+    modifier: Modifier,
     uiState: UiState,
     coroutineScope: CoroutineScope,
     dateFormatter: DateFormat,
     onRequestPermissionsResult: (PermissionResult) -> Unit,
     onFileClick: (FileItem) -> Unit,
     onModelClick: (CollectedModel) -> Unit,
+    onOptionsClick: (ModelsExplorerOptions?) -> Unit,
+    onDownloadModelResult: (String?) -> Unit,
     onBackClick: () -> Unit
 ) {
     if (uiState.isLoading || uiState.requestPermissions) {
@@ -169,9 +199,10 @@ private fun Content(
                 }
             )
         }
-        ShimmeredFilesList()
+        ShimmeredFilesList(modifier = modifier)
     } else {
         Pager(
+            modifier = modifier,
             coroutineScope = coroutineScope,
             dateFormatter = dateFormatter,
             pages = uiState.pages,
@@ -179,14 +210,33 @@ private fun Content(
             onModelClick = onModelClick,
             onBackClick = onBackClick
         )
+        if (uiState.showOptions) {
+            PopupOptions(onOptionsClick = onOptionsClick)
+        }
+        if (uiState.showDownloadModel) {
+            InputDialog(
+                icon = R.drawable.ic_download,
+                //text = "https://storage.googleapis.com/ar-answers-in-search-models/static/Tiger/model.glb",
+                title = R.string.models_explorer_download_model.resource(),
+                confirmButtonText = R.string.general_ok.resource(),
+                dismissButtonText = R.string.general_cancel.resource(),
+                validationRegex = Patterns.WEB_URL.pattern(),
+                supportText = R.string.models_explorer_download_model_description_text.resource(),
+                errorText = R.string.models_explorer_download_model_error_text.resource(),
+                onConfirmButtonClick = { url -> onDownloadModelResult(url) },
+                onDismissButtonClick = { onDownloadModelResult(null) }
+            )
+        }
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ShimmeredFilesList() {
+private fun ShimmeredFilesList(
+    modifier: Modifier = Modifier
+) {
     val count = 40
-    LazyColumn {
+    LazyColumn(modifier = modifier) {
         repeat(count) { index ->
             item {
                 ShimmeredFileListItem(
@@ -243,6 +293,7 @@ private fun ShimmeredFileListItem(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Pager(
+    modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope,
     dateFormatter: DateFormat,
     pages: List<PagerPage>,
@@ -251,7 +302,7 @@ fun Pager(
     onBackClick: () -> Unit
 ) {
     val pagerState = rememberPagerState()
-    Column {
+    Column(modifier = modifier) {
         TabRow(
             selectedTabIndex = pagerState.currentPage,
             containerColor = AppTheme.colors.primary,
@@ -540,6 +591,31 @@ private fun CollectedModelListItem(
                 modifier = Modifier.weight(1f),
                 text = formatFileSize(context, model.sizeBytes).plus(if (creationDate != null) " | $creationDate" else "")
             )
+        }
+    }
+}
+
+@Composable
+private fun PopupOptions(
+    onOptionsClick: (ModelsExplorerOptions?) -> Unit
+) {
+    Popup(
+        alignment = Alignment.TopEnd,
+        onDismissRequest = {
+            onOptionsClick(null)
+        }
+    ) {
+        MenuContainer {
+            PopupButton(text = R.string.models_explorer_download_model.resource()) {
+                onOptionsClick(ModelsExplorerOptions.DownloadModel)
+            }
+            Divider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = DividerDefaults.color.copy(alpha = 0.1f)
+            )
+            PopupButton(text = R.string.general_app_settings.resource()) {
+                onOptionsClick(ModelsExplorerOptions.AppSettings)
+            }
         }
     }
 }

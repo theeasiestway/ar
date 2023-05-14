@@ -4,6 +4,11 @@ import android.os.Parcelable
 import com.theeasiestway.domain.model.CollectedModel
 import kotlinx.parcelize.Parcelize
 
+enum class ModelsExplorerOptions {
+    DownloadModel,
+    AppSettings
+}
+
 @Parcelize
 sealed interface ModelUri: Parcelable {
     val uri: String

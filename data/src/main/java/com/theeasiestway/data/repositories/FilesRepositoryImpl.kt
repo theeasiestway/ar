@@ -30,7 +30,7 @@ class FilesRepositoryImpl(
 
     private val internalFilesDir = Environment.getExternalStorageDirectory()
     private val externalFilesDir = getExternalFilesDir(context)
-    private val modelsCollectionDir = File(context.filesDir, MODELS_COLLECTION_PATH)
+    private val modelsCollectionDir = File(context.getExternalFilesDir(null), MODELS_COLLECTION_PATH)
     private val rootFilesTree = FilesTree(
         rootPath = ROOT_PATH,
         internalStorageRootPath = internalFilesDir.absolutePath,
@@ -69,7 +69,10 @@ class FilesRepositoryImpl(
         }
     }
 
-    @Throws(Exception::class, FileAlreadyExistsException::class)
+    @Throws(
+        Exception::class,
+        FileAlreadyExistsException::class
+    )
     override suspend fun saveModelToCollection(fileUri: FileUri): String {
         return withContext(dispatcher) {
             if (!modelsCollectionDir.exists()) {
@@ -103,7 +106,10 @@ class FilesRepositoryImpl(
         if (lastCollectedModelNumber < 0) {
             loadModelsFromCollection()
                 .mapNotNull { file ->
-                    file.name.split(DOWNLOADED_MODELS_SPLITTER).getOrNull(1)?.toIntOrNull()
+                    file.name
+                        .split(DOWNLOADED_MODELS_SPLITTER)
+                        .getOrNull(1)
+                        ?.toIntOrNull()
                 }.maxOrNull()
                 ?.let { lastModelNumber ->
                     lastCollectedModelNumber = lastModelNumber

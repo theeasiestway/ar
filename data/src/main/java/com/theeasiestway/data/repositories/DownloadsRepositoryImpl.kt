@@ -44,9 +44,10 @@ class DownloadsRepositoryImpl(
     }
 
     override suspend fun downloadFile(url: String, folderToSave: String, fileNameToSave: String): Flow<String> {
-        val file = File("$folderToSave/$fileNameToSave")
-        if (!file.exists()) {
-            file.mkdirs()
+        val folder = File(folderToSave)
+        val file = File(folder, fileNameToSave)
+        if (!folder.exists()) {
+            folder.mkdirs()
         }
         val request = DownloadManager.Request(Uri.parse(url))
             .setDestinationUri(Uri.fromFile(file))

@@ -10,12 +10,9 @@ import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.Permissi
 import com.theeasiestway.stereoar.ui.screens.common.ext.postSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.ext.state
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.orbitmvi.orbit.ContainerHost
@@ -27,7 +24,7 @@ import java.io.File
 class ModelsExplorerViewModel(
     private val filesRepository: FilesRepository,
     private val settingsRepository: SettingsRepository,
-    private val dispatcher: CoroutineDispatcher
+    private val dispatcherIO: CoroutineDispatcher
 ): ContainerHost<State, ModelsExplorerViewModel.SideEffect>, ViewModel(), KoinComponent {
 
     override val container = container<State, SideEffect>(State()) {
@@ -121,34 +118,31 @@ class ModelsExplorerViewModel(
         } ?: emptyFlow()
     }
 
-    private fun loadData() = flow<Event> {
-        try {
-            var filesTreeDeferred: Deferred<FilesTree>? = null
-            var modelsCollectionDeferred: Deferred<List<File>>? = null
-
-            viewModelScope.launch(dispatcher) {
-                filesTreeDeferred = async {
-                    val lastFolder = settingsRepository.loadLastVisitedFolder()
-                    filesRepository.loadLastVisitedFolder(lastFolder)
+    private fun loadData() = channelFlow<Event> {
+        viewModelScope.launch(dispatcherIO) {
+            try {
+                coroutineScope {
+                    val filesTreeDeferred = async {
+                        val lastFolder = settingsRepository.loadLastVisitedFolder()
+                        filesRepository.loadLastVisitedFolder(lastFolder)
+                    }
+                    val modelsCollectionDeferred = async {
+                        filesRepository.loadModelsFromCollection()
+                    }
+                    val filesTree = filesTreeDeferred.await()
+                    val collectedModels = modelsCollectionDeferred.await()
+                    send(
+                        Event.DataLoaded(
+                            files = filesTree,
+                            collectedModels = collectedModels
+                        )
+                    )
                 }
-                modelsCollectionDeferred = async {
-                    filesRepository.loadModelsFromCollection()
-                }
-            }.join()
-
-            val filesTree = filesTreeDeferred!!.await()
-            val collectedModels = modelsCollectionDeferred!!.await()
-
-            emit(
-                Event.DataLoaded(
-                    files = filesTree,
-                    collectedModels = collectedModels
-                )
-            )
-        } catch(e: Throwable) {
-            e.printStackTrace()
-            postSideEffect(SideEffect.ErrorLoadingData)
-        }
+            } catch(e: Throwable) {
+                e.printStackTrace()
+                postSideEffect(SideEffect.ErrorLoadingData)
+            }
+        }.join()
     }
 
     private fun openFile(file: FileItem): Flow<Event> {

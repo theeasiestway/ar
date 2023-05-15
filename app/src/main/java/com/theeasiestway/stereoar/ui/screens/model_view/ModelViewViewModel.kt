@@ -13,12 +13,9 @@ import com.theeasiestway.stereoar.ui.screens.common.koin.closeScope
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelUri
 import com.theeasiestway.stereoar.ui.screens.models_explorer.toFileUri
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.orbitmvi.orbit.ContainerHost
@@ -129,54 +126,56 @@ class ModelViewViewModel(
         modelUri: ModelUri?,
         option: ModelViewOptions?
     ) = flow<Event> {
+        emit(Event.ShowOptions(show = false))
         when(option) {
             ModelViewOptions.AddToCollection -> modelUri?.let { saveToCollection(modelUri) }
             ModelViewOptions.AppSettings -> postSideEffect(SideEffect.OpenAppSettings)
-            null -> emit(Event.ShowOptions(show = false))
+            null -> Unit
         }
     }
 
     private suspend fun saveToCollection(modelUri: ModelUri) {
         try {
             val savedName = filesRepository.saveModelToCollection(modelUri.toFileUri())
-            postSideEffect(SideEffect.SavedToCollection(savedName))
+            postSideEffect(SideEffect.SavedToCollection(savedName.substringAfterLast("/")))
         } catch (e: Throwable) {
             e.printStackTrace()
             postSideEffect(SideEffect.ErrorSaveToCollection)
         }
     }
 
-    private fun loadModel(modelUri: ModelUri) = flow<Event> {
-        try {
-            var collectedModelsDeferred: Deferred<List<String>>? = null
-            var footPrintModelDeferred: Deferred<ModelRenderable?>? = null
-            var modelDeferred: Deferred<ModelRenderable?>? = null
-            viewModelScope.launch(dispatcherIO) {
-                collectedModelsDeferred = async {
-                    filesRepository.loadModelsFromCollection().map { it.absolutePath }
+    private fun loadModel(modelUri: ModelUri) = channelFlow<Event> {
+        viewModelScope.launch(dispatcherIO) {
+            try {
+                coroutineScope {
+                    val collectedModelsDeferred = async {
+                        filesRepository.loadModelsFromCollection().map { file ->
+                            file.absolutePath
+                        }
+                    }
+                    val footPrintModelDeferred = async(dispatcherMain) {
+                        modelsRepository.loadFootPrintModel()
+                    }
+                    val modelDeferred = async(dispatcherMain) {
+                        modelsRepository.loadModel(modelUri.uri)!!
+                    }
+                    val collectedModels = collectedModelsDeferred.await()
+                    val footPrintModel = footPrintModelDeferred.await()
+                    val model = modelDeferred.await()
+                    send(
+                        Event.ModelLoaded(
+                            modelUri = modelUri,
+                            footPrintModel = footPrintModel,
+                            model = model,
+                            addedToCollection = collectedModels.contains(modelUri.uri)
+                        )
+                    )
                 }
-                footPrintModelDeferred = async(dispatcherMain) {
-                    modelsRepository.loadFootPrintModel()
-                }
-                modelDeferred = async(dispatcherMain) {
-                    modelsRepository.loadModel(modelUri.uri)
-                }
-            }.join()
-            val collectedModels = collectedModelsDeferred!!.await()
-            val footPrintModel = footPrintModelDeferred!!.await()!!
-            val model = modelDeferred!!.await()!!
-            emit(
-                Event.ModelLoaded(
-                    modelUri = modelUri,
-                    footPrintModel = footPrintModel,
-                    model = model,
-                    addedToCollection = collectedModels.contains(modelUri.uri)
-                )
-            )
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            postSideEffect(SideEffect.ErrorLoadingModel)
-        }
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                postSideEffect(SideEffect.ErrorLoadingModel)
+            }
+        }.join()
     }
 
     private fun removeFromCollection(modelUri: ModelUri.File) = flow<Event> {

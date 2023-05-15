@@ -119,7 +119,9 @@ fun ModelViewScreen(
                     coroutineScope,
                     snackBarHostState,
                     context.getString(R.string.model_view_error_loading_model)
-                )
+                ) {
+                    navigator.popBackStack()
+                }
             }
             is SideEffect.ErrorRemoveFromCollection -> {
                 showSnackBar(

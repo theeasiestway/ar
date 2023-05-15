@@ -41,7 +41,10 @@ class ModelsRepositoryImpl(
             if (!isFilament) {
                 throw e
             } else {
-                tryToLoad(modelUri = modelUri, isFilament = false)
+                tryToLoad(
+                    modelUri = modelUri,
+                    isFilament = false
+                )
             }
         }
     }

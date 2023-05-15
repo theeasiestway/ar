@@ -12,7 +12,7 @@ val modelsExplorerModule = module {
         ModelsExplorerViewModel(
             filesRepository = get(),
             settingsRepository = get(),
-            dispatcher = get(named(ioDispatcher))
+            dispatcherIO = get(named(ioDispatcher))
         )
     }
 }

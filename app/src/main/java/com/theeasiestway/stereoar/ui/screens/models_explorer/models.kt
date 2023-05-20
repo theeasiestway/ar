@@ -9,6 +9,12 @@ enum class ModelsExplorerOptions {
     AppSettings
 }
 
+sealed interface CollectedModelOptions {
+    val model: CollectedModel
+    data class Rename(override val model: CollectedModel): CollectedModelOptions
+    data class Delete(override val model: CollectedModel): CollectedModelOptions
+}
+
 @Parcelize
 sealed interface ModelUri: Parcelable {
     val uri: String
@@ -38,7 +44,8 @@ sealed class PagerPage {
     ): PagerPage()
 
     data class ModelsCollection(
-        val models: List<CollectedModel>
+        val models: List<CollectedModel>,
+        val selectedModel: CollectedModel?
     ): PagerPage()
 }
 

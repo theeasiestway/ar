@@ -5,5 +5,10 @@ import kotlinx.coroutines.flow.Flow
 interface DownloadsRepository {
     fun startObservingDownloads()
     fun stopObservingDownloads()
-    suspend fun downloadFile(url: String, folderToSave: String, fileNameToSave: String): Flow<String>
+    suspend fun downloadFile(
+        url: String,
+        folderToSave: String,
+        fileNameToSave: String,
+        progressTitle: String? = null,
+    ): Flow<String>
 }

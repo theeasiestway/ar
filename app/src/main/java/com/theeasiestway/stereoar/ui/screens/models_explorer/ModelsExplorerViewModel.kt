@@ -38,10 +38,15 @@ class ModelsExplorerViewModel(
         object HandleTopBarActionClick: Intent
         data class HandleOptionsClick(val option: ModelsExplorerOptions?): Intent
         object LoadData: Intent
+        object UpdateCollectedModels: Intent
         data class OpenFile(val file: FileItem): Intent
         data class LoadModel(val url: String?): Intent
         data class ShowModel(val model: CollectedModel): Intent
-        object GoBack: Intent
+        data class ShowModelOptions(val model: CollectedModel?): Intent
+        data class HandleModelOptionsClick(val option: CollectedModelOptions?): Intent
+        data class RenameModel(val newName: String, val model: CollectedModel): Intent
+        data class DeleteModel(val model: CollectedModel?): Intent
+        data class GoBack(val fromFilesExplorer: Boolean): Intent
     }
 
     sealed interface Event {
@@ -49,19 +54,24 @@ class ModelsExplorerViewModel(
         data class DataLoading(val isLoading: Boolean): Event
         data class DataLoaded(
             val files: FilesTree,
-            val collectedModels: List<File>
+            val collectedModels: List<CollectedModel>
         ): Event
         data class FolderOpened(val filesTree: FilesTree): Event
         data class ShowOptions(val show: Boolean): Event
+        data class ShowModelOptions(val model: CollectedModel?): Event
         data class DownloadModel(val show: Boolean): Event
+        data class ModelOptionSelected(val option: CollectedModelOptions?): Event
+        data class CollectedModelsChanged(val collectedModels: List<CollectedModel>): Event
     }
 
     sealed interface SideEffect {
-        object CloseApp: SideEffect
         data class OpenModelScreen(val modelUri: ModelUri): SideEffect
-        object ErrorLoadingData: SideEffect
         object OpenAppSettings: SideEffect
+        object CloseApp: SideEffect
+        object ErrorLoadingData: SideEffect
         data class ErrorOpeningFile(val isFolder: Boolean): SideEffect
+        object ErrorRenameModel: SideEffect
+        object ErrorDeleteModel: SideEffect
     }
 
     fun handleIntent(intent: Intent) {
@@ -79,18 +89,15 @@ class ModelsExplorerViewModel(
             is Intent.HandleTopBarActionClick -> handleTopBarActionClick()
             is Intent.HandleOptionsClick -> handleOptionsClick(option = intent.option)
             is Intent.LoadData -> loadData()
+            is Intent.UpdateCollectedModels -> updateCollectedModels()
             is Intent.OpenFile -> openFile(file = intent.file)
             is Intent.LoadModel -> downloadModel(url = intent.url)
             is Intent.ShowModel -> showModel(uri = intent.model.path, isFile = true)
-            is Intent.GoBack -> goBack(files = state.files)
-        }
-    }
-
-    private fun handleOptionsClick(option: ModelsExplorerOptions?) = flow {
-        when(option) {
-            ModelsExplorerOptions.DownloadModel -> emit(Event.DownloadModel(show = true))
-            ModelsExplorerOptions.AppSettings -> postSideEffect(SideEffect.OpenAppSettings)
-            null -> emit(Event.ShowOptions(show = false))
+            is Intent.ShowModelOptions -> showModelOptions(model = intent.model)
+            is Intent.HandleModelOptionsClick -> handleModelOptionsClick(option = intent.option)
+            is Intent.RenameModel -> renameModel(newName = intent.newName, model = intent.model)
+            is Intent.DeleteModel -> deleteModel(model = intent.model)
+            is Intent.GoBack -> goBack(files = state.files, fromFilesExplorer = intent.fromFilesExplorer)
         }
     }
 
@@ -112,10 +119,12 @@ class ModelsExplorerViewModel(
         emit(Event.ShowOptions(show = true))
     }
 
-    private fun goBack(files: FilesTree): Flow<Event> {
-        return files.parentPath?.let { path ->
-            openFile(path, true)
-        } ?: emptyFlow()
+    private fun handleOptionsClick(option: ModelsExplorerOptions?) = flow {
+        when(option) {
+            ModelsExplorerOptions.DownloadModel -> emit(Event.DownloadModel(show = true))
+            ModelsExplorerOptions.AppSettings -> postSideEffect(SideEffect.OpenAppSettings)
+            null -> emit(Event.ShowOptions(show = false))
+        }
     }
 
     private fun loadData() = channelFlow<Event> {
@@ -143,6 +152,15 @@ class ModelsExplorerViewModel(
                 postSideEffect(SideEffect.ErrorLoadingData)
             }
         }.join()
+    }
+
+    private fun updateCollectedModels() = flow<Event> {
+        try {
+            val collectedModels = filesRepository.loadModelsFromCollection()
+            emit(Event.CollectedModelsChanged(collectedModels))
+        } catch(e: Throwable) {
+            e.printStackTrace()
+        }
     }
 
     private fun openFile(file: FileItem): Flow<Event> {
@@ -174,17 +192,62 @@ class ModelsExplorerViewModel(
 
     private fun downloadModel(url: String?): Flow<Event> {
         return if (url != null) {
-            showModel(url, false)
+            showModel(uri = url, isFile = false)
         } else flow {
             emit(Event.DownloadModel(show = false))
         }
     }
 
     private fun showModel(uri: String, isFile: Boolean) = flow<Event> {
-        val modelUri = if (isFile) ModelUri.File(uri)
-        else ModelUri.Url(uri)
+        val modelUri = if (isFile) ModelUri.File(uri = uri)
+        else ModelUri.Url(uri = uri)
         postSideEffect(SideEffect.OpenModelScreen(modelUri))
         emit(Event.DownloadModel(show = false))
+    }
+
+    private fun showModelOptions(model: CollectedModel?) = flow<Event> {
+        emit(Event.ShowModelOptions(model = model))
+    }
+
+    private fun handleModelOptionsClick(option: CollectedModelOptions?) = flow {
+        emit(Event.ModelOptionSelected(option = option))
+    }
+
+    private fun renameModel(newName: String, model: CollectedModel) = flow {
+        try {
+            emit(Event.ModelOptionSelected(option = null))
+            filesRepository.renameCollectedModel(newName, model)
+            val collectedModels = filesRepository.loadModelsFromCollection()
+            emit(Event.CollectedModelsChanged(collectedModels = collectedModels))
+        } catch (e: Throwable) {
+            e.printStackTrace()
+            postSideEffect(SideEffect.ErrorRenameModel)
+        }
+    }
+
+    private fun deleteModel(model: CollectedModel?) = flow {
+        try {
+            emit(Event.ModelOptionSelected(option = null))
+            if (model != null) {
+                filesRepository.deleteModelFromCollection(model)
+                val collectedModels = filesRepository.loadModelsFromCollection()
+                emit(Event.CollectedModelsChanged(collectedModels = collectedModels))
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
+            postSideEffect(SideEffect.ErrorDeleteModel)
+        }
+    }
+
+    private fun goBack(files: FilesTree, fromFilesExplorer: Boolean): Flow<Event> {
+        return if (fromFilesExplorer) {
+            files.parentPath?.let { path ->
+                openFile(path, true)
+            } ?: emptyFlow()
+        } else {
+            postSideEffect(SideEffect.CloseApp)
+            emptyFlow()
+        }
     }
 
     private fun reduce(state: State, event: Event): State {
@@ -201,6 +264,9 @@ class ModelsExplorerViewModel(
             is Event.DataLoading -> state.copy(
                 isLoading = event.isLoading
             )
+            is Event.CollectedModelsChanged -> state.copy(
+                collectedModels = event.collectedModels
+            )
             is Event.FolderOpened -> state.copy(
                 isLoading = false,
                 files = event.filesTree
@@ -208,9 +274,16 @@ class ModelsExplorerViewModel(
             is Event.ShowOptions -> state.copy(
                 showOptions = event.show
             )
+            is Event.ShowModelOptions -> state.copy(
+                selectedCollectedModel = event.model
+            )
             is Event.DownloadModel -> state.copy(
                 showDownloadModel = event.show,
                 showOptions = false
+            )
+            is Event.ModelOptionSelected -> state.copy(
+                selectedCollectedModel = null,
+                selectedCollectedModelOption = event.option
             )
         }
     }
@@ -222,7 +295,8 @@ private fun State.toUiState(): UiState {
         requestPermissions = requestPermissions,
         pages = toPages(),
         showOptions = showOptions,
-        showDownloadModel = showDownloadModel
+        showDownloadModel = showDownloadModel,
+        selectedCollectedModelOption = selectedCollectedModelOption
     )
 }
 
@@ -235,7 +309,8 @@ private fun State.toPages(): List<PagerPage> {
             canMoveBack = files.parentPath != null
         ),
         PagerPage.ModelsCollection(
-            models = collectedModels.toCollectedModels()
+            models = collectedModels,
+            selectedModel = selectedCollectedModel
         )
     )
 }
@@ -291,17 +366,6 @@ private fun File.toUi(
             title = name,
             creationDateMillis = lastModified(),
             sizeBytes = length()
-        )
-    }
-}
-
-private fun List<File>.toCollectedModels(): List<CollectedModel> {
-    return map { file ->
-        CollectedModel(
-            name = file.name,
-            path = file.absolutePath,
-            sizeBytes = file.length(),
-            creationDateMillis = file.lastModified()
         )
     }
 }

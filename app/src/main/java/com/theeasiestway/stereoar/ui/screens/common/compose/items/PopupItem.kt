@@ -1,4 +1,4 @@
-package com.theeasiestway.stereoar.ui.screens.common.compose.buttons
+package com.theeasiestway.stereoar.ui.screens.common.compose.items
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
@@ -14,7 +14,7 @@ import com.theeasiestway.stereoar.ui.screens.common.compose.text.BodyMedium
 import com.theeasiestway.stereoar.ui.theme.AppTheme
 
 @Composable
-fun PopupButton(
+fun PopupItem(
     text: String,
     modifier: Modifier = Modifier.fillMaxWidth(),
     onClick: () -> Unit
@@ -31,8 +31,8 @@ fun PopupButton(
 @Preview(uiMode = Configuration.UI_MODE_NIGHT_NO)
 @Preview(uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-private fun PopupButtonPreview() {
+private fun PopupItemPreview() {
     AppTheme {
-        PopupButton(text = "Popup button text") {}
+        PopupItem(text = "Popup item text") {}
     }
 }

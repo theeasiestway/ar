@@ -1,6 +1,7 @@
 package com.theeasiestway.stereoar.ui.screens.common.compose.dialogs
 
 import android.content.res.Configuration
+import android.util.Patterns
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.theeasiestway.stereoar.R
@@ -19,6 +22,11 @@ import com.theeasiestway.stereoar.ui.screens.common.compose.text.HeadlineSmall
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.LabelLarge
 import com.theeasiestway.stereoar.ui.theme.AppTheme
 import java.util.regex.Pattern
+
+object InputRegexps {
+    const val atLeastOneNonWhiteSpace = "^.*\\S+.*\$"
+    val url: String = Patterns.WEB_URL.pattern()
+}
 
 @Composable
 fun InputDialog(
@@ -37,13 +45,13 @@ fun InputDialog(
     dismissByClickOutside: Boolean = false,
     onDialogClose: () -> Unit = {},
 ) {
-    var textInternal by remember { mutableStateOf(text) }
-    var textChanged by remember { mutableStateOf(false) }
+    var textInternal by remember { mutableStateOf(TextFieldValue(text, selection = TextRange(text.length)))}
+    var textChanged by remember { mutableStateOf(text.isNotEmpty()) }
     val focusRequester = remember { FocusRequester() }
     val validator = if (validationRegex != null) { remember(validationRegex) { Pattern.compile(validationRegex) } } else null
     val isValidInput = remember(textInternal, validator) {
         if (textChanged) {
-            validator?.matcher(textInternal)?.matches() ?: true
+            validator?.matcher(textInternal.text)?.matches() ?: true
         } else true
     }
     LaunchedEffect(Unit) {
@@ -84,7 +92,7 @@ fun InputDialog(
             TextButton(
                 enabled = isValidInput && textChanged,
                 onClick = {
-                    onConfirmButtonClick(textInternal)
+                    onConfirmButtonClick(textInternal.text)
                 }
             ) {
                 LabelLarge(

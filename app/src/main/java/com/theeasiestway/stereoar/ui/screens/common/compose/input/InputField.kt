@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.theeasiestway.stereoar.R
@@ -18,7 +19,7 @@ import com.theeasiestway.stereoar.ui.theme.AppTheme
 
 @Composable
 fun InputField(
-    text: String = "",
+    text: TextFieldValue = TextFieldValue(""),
     isError: Boolean = false,
     enabled: Boolean = true,
     singleLine: Boolean = true,
@@ -27,7 +28,7 @@ fun InputField(
     supportText: String? = null,
     leadingIcon: @Composable (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    onTextChange: (String) -> Unit,
+    onTextChange: (TextFieldValue) -> Unit,
 ) {
     OutlinedTextField(
         modifier = modifier.fillMaxWidth(),
@@ -62,7 +63,7 @@ fun InputField(
         },
         leadingIcon = leadingIcon,
         trailingIcon = {
-            if (text.isNotEmpty()) {
+            if (text.text.isNotEmpty()) {
                 ImageDrawable(
                     resId = R.drawable.ic_clear,
                     tint = AppTheme.colors.primaryText,
@@ -70,7 +71,7 @@ fun InputField(
                         .size(24.dp)
                         .clip(CircleShape)
                         .clickable {
-                            onTextChange("")
+                            onTextChange(TextFieldValue(""))
                         }
                 )
             }
@@ -89,7 +90,7 @@ fun InputField(
 @Composable
 private fun InputFieldPreview() {
     AppTheme {
-        var text by remember { mutableStateOf("text") }
+        var text by remember { mutableStateOf(TextFieldValue("text")) }
         Column {
             InputField(
                 text = text,

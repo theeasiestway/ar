@@ -1,7 +1,7 @@
 package com.theeasiestway.stereoar.ui.screens.models_explorer
 
+import com.theeasiestway.domain.model.CollectedModel
 import com.theeasiestway.domain.model.FilesTree
-import java.io.File
 
 data class State(
     val isLoading: Boolean = true,
@@ -14,9 +14,11 @@ data class State(
         parentPath = "",
         files = emptyList()
     ),
-    val collectedModels: List<File> = emptyList(),
+    val collectedModels: List<CollectedModel> = emptyList(),
     val showOptions: Boolean = false,
-    val showDownloadModel: Boolean = false
+    val showDownloadModel: Boolean = false,
+    val selectedCollectedModel: CollectedModel? = null,
+    val selectedCollectedModelOption: CollectedModelOptions? = null
 )
 
 data class UiState(
@@ -24,5 +26,6 @@ data class UiState(
     val requestPermissions: Boolean = false,
     val pages: List<PagerPage> = emptyList(),
     val showOptions: Boolean = false,
-    val showDownloadModel: Boolean = false
+    val showDownloadModel: Boolean = false,
+    val selectedCollectedModelOption: CollectedModelOptions? = null
 )

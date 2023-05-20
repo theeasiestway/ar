@@ -1,5 +1,6 @@
 package com.theeasiestway.stereoar.ui.screens.model_view
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.infiniteRepeatable
@@ -21,13 +22,15 @@ import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.manualcomposablecalls.ManualComposableCallsBuilder
 import com.ramcosta.composedestinations.manualcomposablecalls.composable
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.ramcosta.composedestinations.result.ResultBackNavigator
+import com.ramcosta.composedestinations.scope.resultBackNavigator
 import com.theeasiestway.domain.repositories.DownloadsRepository
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.modelViewScopeId
-import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.PopupButton
 import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.TopBarButton
 import com.theeasiestway.stereoar.ui.screens.common.compose.custom.BubblesEffect
 import com.theeasiestway.stereoar.ui.screens.common.compose.custom.MenuContainer
+import com.theeasiestway.stereoar.ui.screens.common.compose.items.PopupItem
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.RequestCameraPermission
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.BodyLarge
@@ -51,7 +54,8 @@ fun ManualComposableCallsBuilder.modelViewScreenFactory(
         createScopeIfNull(scopeId = modelViewScopeId)
         ModelViewScreen(
             navigator = destinationsNavigator,
-            modelUri = navArgs.modelUri,
+            resultNavigator = resultBackNavigator(),
+            modelUri = navArgs.modelUri
         )
     }
 }
@@ -60,6 +64,7 @@ fun ManualComposableCallsBuilder.modelViewScreenFactory(
 @Composable
 fun ModelViewScreen(
     navigator: DestinationsNavigator,
+    resultNavigator: ResultBackNavigator<ModelViewResult>,
     modelUri: ModelUri
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -69,6 +74,7 @@ fun ModelViewScreen(
     val downloadsRepository: DownloadsRepository = get()
     val viewModel: ModelViewViewModel = koinViewModel()
     val uiState = viewModel.uiState.collectAsState(initial = UiState()).value
+    var navResult by remember { mutableStateOf<ModelViewResult?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -90,6 +96,10 @@ fun ModelViewScreen(
 
     viewModel.onSideEffect { effect ->
         when(effect) {
+            is SideEffect.LoadModel -> {
+                val loadingText = context.getString(R.string.model_view_downloading_model_to_collection)
+                viewModel.handleIntent(Intent.LoadModel(modelUri = modelUri, loadingText = loadingText))
+            }
             is SideEffect.OpenAppSettings -> {
                 showSnackBar(
                     coroutineScope = coroutineScope,
@@ -98,9 +108,12 @@ fun ModelViewScreen(
                 )
             }
             is SideEffect.CloseScreen -> {
-                navigator.popBackStack()
+                navResult?.let { result ->
+                    resultNavigator.navigateBack(result = result)
+                } ?: navigator.popBackStack()
             }
             is SideEffect.SavedToCollection -> {
+                navResult = ModelViewResult.CollectedModelsChanged
                 showSnackBar(
                     coroutineScope,
                     snackBarHostState,
@@ -146,15 +159,11 @@ fun ModelViewScreen(
         }
     ) { paddingValues ->
         Content(
+            isLocalModel = modelUri is ModelUri.File,
             uiState = uiState,
             modifier = Modifier.padding(paddingValues),
             onRequestPermissionResult = { result ->
-                viewModel.handleIntent(
-                    Intent.HandlePermissionResult(
-                        result = result,
-                        modelUri = modelUri
-                    )
-                )
+                viewModel.handleIntent(Intent.HandlePermissionResult(result = result))
             },
             onTopBarOptionsClick = {
                 viewModel.handleIntent(Intent.HandleTopBarActionClick)
@@ -164,6 +173,9 @@ fun ModelViewScreen(
             },
             onSceneCleared = {
                 viewModel.handleIntent(Intent.HandleSceneCleared)
+            },
+            onBackClick = {
+                viewModel.handleIntent(Intent.HandleBackClick)
             }
         )
     }
@@ -171,37 +183,54 @@ fun ModelViewScreen(
 
 @Composable
 private fun Content(
+    isLocalModel: Boolean,
     uiState: UiState,
     modifier: Modifier,
     onRequestPermissionResult: (PermissionResult) -> Unit,
     onTopBarOptionsClick: () -> Unit,
     onOptionsClick: (ModelViewOptions?) -> Unit,
-    onSceneCleared: () -> Unit
+    onSceneCleared: () -> Unit,
+    onBackClick: () -> Unit
 ) {
-    if (uiState.isLoading || uiState.requestPermissions) {
-        if (uiState.requestPermissions) {
-            RequestCameraPermission(
-                icon = R.drawable.ic_camera,
-                rationalTitle = R.string.camera_permission_rational_title.resource(),
-                rationalText = R.string.camera_permission_rational_text.resource(),
-                deniedTitle = R.string.camera_permission_rational_title.resource(),
-                deniedText = R.string.camera_permission_denied_text.resource(),
-                deniedDismissButtonText = R.string.general_cancel.resource(),
-                onResult = onRequestPermissionResult
+    when {
+        uiState.isLoading || uiState.requestPermissions -> {
+            if (uiState.requestPermissions) {
+                CameraPermissionDialog(onRequestPermissionResult)
+            }
+            ShimmeredScene(
+                isLocalModel = isLocalModel,
+                modifier = modifier
             )
         }
-        ShimmeredScene(modifier = modifier)
-    } else {
-        if (uiState.showOptions) {
-            PopupOptions(onOptionsClick = onOptionsClick)
+        else -> {
+            if (uiState.options.isNotEmpty()) {
+                TopBarOptions(
+                    options = uiState.options,
+                    onOptionsClick = onOptionsClick
+                )
+            }
+            Scene(
+                modifier = modifier,
+                sceneState = uiState.toSceneState(),
+                onSceneCleared = onSceneCleared,
+                onTopBarOptionsClick = onTopBarOptionsClick,
+                onBackClick = onBackClick
+            )
         }
-        Scene(
-            modifier = modifier,
-            sceneState = uiState.toSceneState(),
-            onSceneCleared = onSceneCleared,
-            onTopBarOptionsClick = onTopBarOptionsClick
-        )
     }
+}
+
+@Composable
+fun CameraPermissionDialog(onRequestPermissionResult: (PermissionResult) -> Unit) {
+    RequestCameraPermission(
+        icon = R.drawable.ic_camera,
+        rationalTitle = R.string.camera_permission_rational_title.resource(),
+        rationalText = R.string.camera_permission_rational_text.resource(),
+        deniedTitle = R.string.camera_permission_rational_title.resource(),
+        deniedText = R.string.camera_permission_denied_text.resource(),
+        deniedDismissButtonText = R.string.general_cancel.resource(),
+        onResult = onRequestPermissionResult
+    )
 }
 
 @Composable
@@ -209,8 +238,10 @@ private fun Scene(
     sceneState: ArSceneState,
     modifier: Modifier = Modifier,
     onTopBarOptionsClick: () -> Unit,
-    onSceneCleared: () -> Unit
+    onSceneCleared: () -> Unit,
+    onBackClick: () -> Unit
 ) {
+    BackHandler(onBack = onBackClick)
     Box(
         modifier = modifier,
         contentAlignment = Alignment.TopEnd
@@ -238,6 +269,7 @@ private fun UiState.toSceneState(): ArSceneState {
 
 @Composable
 private fun ShimmeredScene(
+    isLocalModel: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -250,12 +282,14 @@ private fun ShimmeredScene(
                 .background(Color.Black),
             bubblesCount = 20
         )
-        LoadingText()
+        LoadingText(isLocalModel)
     }
 }
 
 @Composable
-private fun LoadingText() {
+private fun LoadingText(
+    isLocalModel: Boolean
+) {
     val animation = remember { Animatable(0f) }
     val textPostfix = when(animation.value.toInt()) {
         0 -> ""
@@ -268,7 +302,8 @@ private fun LoadingText() {
         horizontalArrangement = Arrangement.Center
     ) {
         BodyLarge(
-            text = R.string.model_view_loading_model.resource(),
+            text = if (isLocalModel) R.string.model_view_loading_model.resource()
+            else R.string.model_view_downloading_model.resource(),
             color = AppTheme.colors.surface
         )
         BodyLarge(
@@ -282,7 +317,7 @@ private fun LoadingText() {
             targetValue = 4f,
             animationSpec = infiniteRepeatable(
                 animation = tween(
-                    durationMillis = 3000,
+                    durationMillis = 2500,
                     easing = LinearEasing
                 )
             )
@@ -291,7 +326,8 @@ private fun LoadingText() {
 }
 
 @Composable
-private fun PopupOptions(
+private fun TopBarOptions(
+    options: List<ModelViewOptions>,
     onOptionsClick: (ModelViewOptions?) -> Unit
 ) {
     Popup(
@@ -301,15 +337,23 @@ private fun PopupOptions(
         }
     ) {
         MenuContainer {
-            PopupButton(text = R.string.model_view_add_to_collection.resource()) {
-                onOptionsClick(ModelViewOptions.AddToCollection)
-            }
-            Divider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = DividerDefaults.color.copy(alpha = 0.1f)
-            )
-            PopupButton(text = R.string.general_app_settings.resource()) {
-                onOptionsClick(ModelViewOptions.AppSettings)
+            options.forEach { option ->
+                when (option) {
+                    is ModelViewOptions.SaveToCollection -> {
+                        PopupItem(text = R.string.model_view_save_to_collection.resource()) {
+                            onOptionsClick(ModelViewOptions.SaveToCollection(option.modelUri))
+                        }
+                        Divider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = DividerDefaults.color.copy(alpha = 0.1f)
+                        )
+                    }
+                    is ModelViewOptions.AppSettings -> {
+                        PopupItem(text = R.string.general_app_settings.resource()) {
+                            onOptionsClick(ModelViewOptions.AppSettings)
+                        }
+                    }
+                }
             }
         }
     }

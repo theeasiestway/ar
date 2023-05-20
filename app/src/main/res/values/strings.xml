@@ -4,6 +4,9 @@
 
     <!--  General  -->
     <string name="general_ok">OK</string>
+    <string name="general_yes">Yes</string>
+    <string name="general_no">No</string>
+    <string name="general_save">Save</string>
     <string name="general_cancel">Cancel</string>
     <string name="general_exit">Exit</string>
     <string name="general_open_settings">Open settings</string>
@@ -40,15 +43,26 @@
     <string name="models_explorer_internal_storage">Internal Storage</string>
     <string name="models_explorer_sd_card">SD Card</string>
     <string name="models_explorer_download_model">Download Model</string>
+    <string name="models_explorer_download">Download</string>
     <string name="models_explorer_download_model_description_text">Enter .glb model URL</string>
     <string name="models_explorer_download_model_error_text">Entered string is not a valid URL</string>
     <string name="models_explorer_error_loading_files">Unable to load files, please check files permissions</string>
     <string name="models_explorer_error_opening_file_or_folder">Unable to open %1$s, please check files permissions</string>
+    <string name="models_explorer_error_rename_model">Unable to rename model, please check files permissions</string>
+    <string name="models_explorer_error_delete_model">Unable to delete model, please check files permissions</string>
+    <string name="models_explorer_collected_model_rename">Rename</string>
+    <string name="models_explorer_collected_model_rename_model">Rename Model</string>
+    <string name="models_explorer_collected_model_rename_description_text">Enter model name</string>
+    <string name="models_explorer_collected_model_rename_error_text">Model name cannot be empty</string>
+    <string name="models_explorer_collected_model_delete">Delete</string>
+    <string name="models_explorer_collected_model_delete_model">Delete Model</string>
+    <string name="models_explorer_collected_model_delete_model_text">Are you sure want to delete model: \"%1$s\"?</string>
 
     <!--  Model View  -->
-    <string name="model_view_model_saved_to_collection">Model has been saved to collection with name: \"%s\"</string>
+    <string name="model_view_model_saved_to_collection">Model has been saved to collection with name: \"%1$s\"</string>
     <string name="model_view_model_removed_from_collection">Model "%s" has been removed from collection</string>
-    <string name="model_view_add_to_collection">Add To Collection</string>
+    <string name="model_view_save_to_collection">Save To Collection</string>
+    <string name="model_view_downloading_model_to_collection">Downloading model to collection</string>
     <string name="model_view_error_loading_model">Failed to load AR model</string>
     <string name="model_view_error_save_model_to_collection">Failed to save model to collection</string>
     <string name="model_view_error_remove_model_from_collection">Failed to remove model from collection</string>
@@ -62,5 +76,6 @@
     <string name="camera_permission_rational_title">Camera Access</string>
     <string name="camera_permission_rational_text">Application needs camera access to display AR models in augmented reality</string>
     <string name="camera_permission_denied_text">Application needs camera access to display AR models in augmented reality you can grant it in application settings</string>
-    <string name="model_view_loading_model">Loading Model</string>
+    <string name="model_view_downloading_model">Downloading model</string>
+    <string name="model_view_loading_model">Loading model</string>
 </resources>

@@ -43,7 +43,12 @@ class DownloadsRepositoryImpl(
         context.unregisterReceiver(broadcastReceiver)
     }
 
-    override suspend fun downloadFile(url: String, folderToSave: String, fileNameToSave: String): Flow<String> {
+    override suspend fun downloadFile(
+        url: String,
+        folderToSave: String,
+        fileNameToSave: String,
+        progressTitle: String?,
+    ): Flow<String> {
         val folder = File(folderToSave)
         val file = File(folder, fileNameToSave)
         if (!folder.exists()) {
@@ -52,6 +57,9 @@ class DownloadsRepositoryImpl(
         val request = DownloadManager.Request(Uri.parse(url))
             .setDestinationUri(Uri.fromFile(file))
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+        if (progressTitle != null) {
+            request.setTitle(progressTitle)
+        }
         val downloadId = downloadManager.enqueue(request)
         return downloadsObserver
             .filter { download -> download.id == downloadId }

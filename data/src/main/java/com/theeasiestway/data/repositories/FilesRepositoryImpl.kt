@@ -2,8 +2,9 @@ package com.theeasiestway.data.repositories
 
 import android.content.Context
 import android.os.Environment
-import com.theeasiestway.domain.model.FilesTree
+import com.theeasiestway.domain.model.CollectedModel
 import com.theeasiestway.domain.model.FileUri
+import com.theeasiestway.domain.model.FilesTree
 import com.theeasiestway.domain.repositories.DownloadsRepository
 import com.theeasiestway.domain.repositories.FilesRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -23,9 +24,12 @@ class FilesRepositoryImpl(
         private const val MODELS_PATH = "models"
         private const val MODELS_COLLECTION_PATH = "$MODELS_PATH/collection"
         private const val EXTERNAL_FILES_DIR_POSTFIX = "/Android/data"
-        private const val DEFAULT_DOWNLOADED_MODEL_NAME = "Model"
-        private const val NEW_DOWNLOADED_MODEL_NAME = "$DEFAULT_DOWNLOADED_MODEL_NAME %s"
-        private val DOWNLOADED_MODELS_SPLITTER = "$DEFAULT_DOWNLOADED_MODEL_NAME +".toRegex()
+        private const val DEFAULT_SAVED_MODEL_NAME = "Model"
+        private const val DEFAULT_DOWNLOADED_NAME = "temp"
+        private const val NEW_DOWNLOADED_MODEL_NAME = "${DEFAULT_SAVED_MODEL_NAME}_${DEFAULT_DOWNLOADED_NAME}_%d"
+        private const val NEW_SAVED_MODEL_NAME = "$DEFAULT_SAVED_MODEL_NAME %d"
+        private val DOWNLOADED_MODELS_NAME_PATTERN = "_${DEFAULT_DOWNLOADED_NAME}_\\d{8,}".toRegex()
+        private val SAVED_MODELS_NAME_PATTERN = "$DEFAULT_SAVED_MODEL_NAME +".toRegex()
     }
 
     private val internalFilesDir = Environment.getExternalStorageDirectory()
@@ -69,45 +73,62 @@ class FilesRepositoryImpl(
         }
     }
 
+    @Throws(Exception::class)
+    override suspend fun downloadModel(
+        modelUri: String,
+        loadingTitle: String?
+    ): String {
+        return downloadsRepository.downloadFile(
+            url = modelUri,
+            folderToSave = modelsCollectionDir.absolutePath,
+            fileNameToSave = NEW_DOWNLOADED_MODEL_NAME.format(System.currentTimeMillis()),
+            progressTitle = loadingTitle
+        ).first()
+    }
+
     @Throws(
         Exception::class,
         FileAlreadyExistsException::class
     )
-    override suspend fun saveModelToCollection(fileUri: FileUri): String {
+    override suspend fun saveModelToCollection(fileUri: FileUri.File): String {
         return withContext(dispatcher) {
             if (!modelsCollectionDir.exists()) {
                 modelsCollectionDir.mkdirs()
             }
-            when (fileUri) {
-                is FileUri.File -> saveModel(fileUri.uri)
-                is FileUri.Url -> {
-                    updateLastCollectedModelNumber()
-                    downloadsRepository.downloadFile(
-                        url = fileUri.uri,
-                        folderToSave = modelsCollectionDir.absolutePath,
-                        fileNameToSave = NEW_DOWNLOADED_MODEL_NAME.format(++lastCollectedModelNumber) // .format() to make name creation more clear
-                    ).first()
-                }
+            if (fileUri.uri.contains(DOWNLOADED_MODELS_NAME_PATTERN)) {
+                deleteAllTempModelsExcept(fileUri.uri)
+                updateLastCollectedModelNumber()
+                val sourceFile = File(fileUri.uri)
+                val newName = NEW_SAVED_MODEL_NAME.format(++lastCollectedModelNumber)
+                val newFile = File(sourceFile.absolutePath.substringBeforeLast("/"), newName)
+                sourceFile.renameTo(newFile)
+                newFile.name
+            } else {
+                val sourceFile = File(fileUri.uri)
+                val destFile = File(modelsCollectionDir, sourceFile.name)
+                sourceFile.copyTo(destFile)
+                destFile.name
             }
         }
     }
 
-    @Throws(Exception::class)
-    override suspend fun removeModelFromCollection(fileUri: FileUri.File) {
-        withContext(dispatcher) {
-            val file = File(fileUri.uri)
-            if (file.exists() && !file.isDirectory) {
-                file.delete()
+    private suspend fun deleteAllTempModelsExcept(exceptUri: String) {
+        loadSavedModels(filterTempModels = false)
+            .forEach { model ->
+                if (model.path != exceptUri &&
+                    model.path.contains(DOWNLOADED_MODELS_NAME_PATTERN)
+                ) {
+                    deleteModelFromCollection(model)
+                }
             }
-        }
     }
 
     private suspend fun updateLastCollectedModelNumber() {
         if (lastCollectedModelNumber < 0) {
-            loadModelsFromCollection()
+            loadSavedModels(filterTempModels = true)
                 .mapNotNull { file ->
                     file.name
-                        .split(DOWNLOADED_MODELS_SPLITTER)
+                        .split(SAVED_MODELS_NAME_PATTERN)
                         .getOrNull(1)
                         ?.toIntOrNull()
                 }.maxOrNull()
@@ -118,21 +139,50 @@ class FilesRepositoryImpl(
     }
 
     @Throws(Exception::class)
-    private suspend fun saveModel(modelPath: String): String {
+    override suspend fun loadModelsFromCollection(): List<CollectedModel> {
+        return loadSavedModels(filterTempModels = true)
+    }
+
+    private suspend fun loadSavedModels(filterTempModels: Boolean): List<CollectedModel> {
         return withContext(dispatcher) {
-            val sourceFile = File(modelPath)
-            val destFile = File(modelsCollectionDir, sourceFile.name)
-            sourceFile.copyTo(destFile)
-            destFile.name
+            if (modelsCollectionDir.exists()) {
+                modelsCollectionDir.listFiles()
+                    ?.filter { file ->
+                        if (filterTempModels) {
+                            !file.name.contains(DOWNLOADED_MODELS_NAME_PATTERN)
+                        } else true
+                    }
+                    ?.map { file ->
+                        CollectedModel(
+                            name = file.name,
+                            path = file.absolutePath,
+                            sizeBytes = file.length(),
+                            creationDateMillis = file.lastModified()
+                        )
+                    }
+                    ?: emptyList()
+            } else emptyList()
         }
     }
 
     @Throws(Exception::class)
-    override suspend fun loadModelsFromCollection(): List<File> {
-        return withContext(dispatcher) {
-            if (modelsCollectionDir.exists()) {
-                modelsCollectionDir.listFiles()?.toList() ?: emptyList()
-            } else emptyList()
+    override suspend fun renameCollectedModel(newName: String, model: CollectedModel) {
+        withContext(dispatcher) {
+            val file = File(model.path)
+            if (file.exists() && file.name != newName) {
+                val newFile = File(model.path.substringBeforeLast("/"), newName)
+                file.renameTo(newFile)
+            }
+        }
+    }
+
+    @Throws(Exception::class)
+    override suspend fun deleteModelFromCollection(model: CollectedModel) {
+        withContext(dispatcher) {
+            val file = File(model.path)
+            if (file.exists() && !file.isDirectory) {
+                file.delete()
+            }
         }
     }
 

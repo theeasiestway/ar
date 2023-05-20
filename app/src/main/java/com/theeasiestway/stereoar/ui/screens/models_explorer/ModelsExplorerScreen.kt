@@ -2,7 +2,6 @@ package com.theeasiestway.stereoar.ui.screens.models_explorer
 
 import android.text.format.Formatter.formatFileSize
 import android.util.Log
-import android.util.Patterns
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -30,14 +29,20 @@ import com.ramcosta.composedestinations.annotation.RootNavGraph
 import com.ramcosta.composedestinations.manualcomposablecalls.ManualComposableCallsBuilder
 import com.ramcosta.composedestinations.manualcomposablecalls.composable
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.ramcosta.composedestinations.result.NavResult
+import com.ramcosta.composedestinations.result.ResultRecipient
+import com.ramcosta.composedestinations.scope.resultRecipient
 import com.theeasiestway.domain.model.CollectedModel
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.is24TimeFormatQualifier
-import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.PopupButton
+import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.ImageButton
 import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.TopBarButton
 import com.theeasiestway.stereoar.ui.screens.common.compose.custom.MenuContainer
 import com.theeasiestway.stereoar.ui.screens.common.compose.dialogs.InputDialog
+import com.theeasiestway.stereoar.ui.screens.common.compose.dialogs.InputRegexps
+import com.theeasiestway.stereoar.ui.screens.common.compose.dialogs.TextDialog
 import com.theeasiestway.stereoar.ui.screens.common.compose.images.ImageDrawable
+import com.theeasiestway.stereoar.ui.screens.common.compose.items.PopupItem
 import com.theeasiestway.stereoar.ui.screens.common.compose.modifiers.shimmerEffect
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.ReadFilesPermission
@@ -48,6 +53,7 @@ import com.theeasiestway.stereoar.ui.screens.common.ext.resource
 import com.theeasiestway.stereoar.ui.screens.common.ext.showSnackBar
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelsExplorerScreenDestination
+import com.theeasiestway.stereoar.ui.screens.model_view.ModelViewResult
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelsExplorerViewModel.Intent
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelsExplorerViewModel.SideEffect
 import com.theeasiestway.stereoar.ui.theme.AppTheme
@@ -66,6 +72,7 @@ fun ManualComposableCallsBuilder.modelsExplorerScreenFactory(
     composable(ModelsExplorerScreenDestination) {
         ModelsExplorerScreen(
             navigator = destinationsNavigator,
+            modelViewResult = resultRecipient(),
             onCloseApp = onCloseApp
         )
     }
@@ -76,6 +83,7 @@ fun ManualComposableCallsBuilder.modelsExplorerScreenFactory(
 @Composable
 fun ModelsExplorerScreen(
     navigator: DestinationsNavigator,
+    modelViewResult: ResultRecipient<ModelViewScreenDestination, ModelViewResult>,
     onCloseApp: () -> Unit,
 ) {
     val viewModel: ModelsExplorerViewModel = koinViewModel()
@@ -90,6 +98,12 @@ fun ModelsExplorerScreen(
     }
     val dateFormatter by remember(Locale.getDefault(), dateFormat) {
         mutableStateOf(SimpleDateFormat(dateFormat, Locale.getDefault()))
+    }
+
+    modelViewResult.onNavResult { result ->
+        if (result is NavResult.Value && result.value == ModelViewResult.CollectedModelsChanged) {
+            viewModel.handleIntent(Intent.UpdateCollectedModels)
+        }
     }
 
     viewModel.onSideEffect { effect ->
@@ -112,6 +126,20 @@ fun ModelsExplorerScreen(
                     coroutineScope = coroutineScope,
                     snackBarHostState = snackBarHostState,
                     message = context.getString(R.string.models_explorer_error_loading_files)
+                )
+            }
+            is SideEffect.ErrorRenameModel -> {
+                showSnackBar(
+                    coroutineScope = coroutineScope,
+                    snackBarHostState = snackBarHostState,
+                    message = context.getString(R.string.models_explorer_error_rename_model)
+                )
+            }
+            is SideEffect.ErrorDeleteModel -> {
+                showSnackBar(
+                    coroutineScope = coroutineScope,
+                    snackBarHostState = snackBarHostState,
+                    message = context.getString(R.string.models_explorer_error_delete_model)
                 )
             }
             is SideEffect.ErrorOpeningFile -> {
@@ -158,14 +186,26 @@ fun ModelsExplorerScreen(
             onModelClick = { model ->
                 viewModel.handleIntent(Intent.ShowModel(model))
             },
+            onShowModelOptionsClick = { model ->
+                viewModel.handleIntent(Intent.ShowModelOptions(model))
+            },
+            onModelOptionsClick = { option ->
+                viewModel.handleIntent(Intent.HandleModelOptionsClick(option))
+            },
+            onModelRenamed = { newName, model ->
+                viewModel.handleIntent(Intent.RenameModel(newName, model))
+            },
+            onModelDeleted = { model ->
+                viewModel.handleIntent(Intent.DeleteModel(model))
+            },
             onOptionsClick = { option ->
                 viewModel.handleIntent(Intent.HandleOptionsClick(option))
             },
             onDownloadModelResult = { url ->
                 viewModel.handleIntent(Intent.LoadModel(url))
             },
-            onBackClick = {
-                viewModel.handleIntent(Intent.GoBack)
+            onBackClick = { fromFilesList ->
+                viewModel.handleIntent(Intent.GoBack(fromFilesList))
             }
         )
     }
@@ -180,54 +220,79 @@ private fun Content(
     onRequestPermissionsResult: (PermissionResult) -> Unit,
     onFileClick: (FileItem) -> Unit,
     onModelClick: (CollectedModel) -> Unit,
+    onShowModelOptionsClick: (CollectedModel) -> Unit,
+    onModelOptionsClick: (CollectedModelOptions?) -> Unit,
+    onModelRenamed: (String, CollectedModel) -> Unit,
+    onModelDeleted: (CollectedModel?) -> Unit,
     onOptionsClick: (ModelsExplorerOptions?) -> Unit,
     onDownloadModelResult: (String?) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: (fromFilesExplorer: Boolean) -> Unit
 ) {
-    if (uiState.isLoading || uiState.requestPermissions) {
-        if (uiState.requestPermissions) {
-            ReadFilesPermission(
-                icon = R.drawable.ic_folder,
-                rationalTitle = R.string.files_permission_rational_title.resource(),
-                rationalText = R.string.files_permission_rational_text.resource(),
-                deniedTitle = R.string.files_permission_rational_title.resource(),
-                deniedText = R.string.files_permission_denied_text.resource(),
-                deniedDismissButtonText = R.string.general_close_app.resource(),
-                onResult = { result ->
-                    Log.d("qdwqdqw", "result: $result")
-                    onRequestPermissionsResult(result)
+    when {
+        uiState.isLoading || uiState.requestPermissions -> {
+            if (uiState.requestPermissions) {
+                ReadFilesPermissionDialog(onResult = onRequestPermissionsResult)
+            }
+            ShimmeredFilesList(modifier = modifier)
+        }
+        else -> {
+            Pager(
+                modifier = modifier,
+                coroutineScope = coroutineScope,
+                dateFormatter = dateFormatter,
+                pages = uiState.pages,
+                onFileClick = onFileClick,
+                onModelClick = onModelClick,
+                onShowModelOptionsClick = onShowModelOptionsClick,
+                onModelOptionsClick = onModelOptionsClick,
+                onBackClick = onBackClick
+            )
+            when {
+                uiState.showOptions -> {
+                    TopBarOptions(onOptionsClick = onOptionsClick)
                 }
-            )
-        }
-        ShimmeredFilesList(modifier = modifier)
-    } else {
-        Pager(
-            modifier = modifier,
-            coroutineScope = coroutineScope,
-            dateFormatter = dateFormatter,
-            pages = uiState.pages,
-            onFileClick = onFileClick,
-            onModelClick = onModelClick,
-            onBackClick = onBackClick
-        )
-        if (uiState.showOptions) {
-            PopupOptions(onOptionsClick = onOptionsClick)
-        }
-        if (uiState.showDownloadModel) {
-            InputDialog(
-                icon = R.drawable.ic_download,
-                //text = "https://storage.googleapis.com/ar-answers-in-search-models/static/Tiger/model.glb",
-                title = R.string.models_explorer_download_model.resource(),
-                confirmButtonText = R.string.general_ok.resource(),
-                dismissButtonText = R.string.general_cancel.resource(),
-                validationRegex = Patterns.WEB_URL.pattern(),
-                supportText = R.string.models_explorer_download_model_description_text.resource(),
-                errorText = R.string.models_explorer_download_model_error_text.resource(),
-                onConfirmButtonClick = { url -> onDownloadModelResult(url) },
-                onDismissButtonClick = { onDownloadModelResult(null) }
-            )
+                uiState.showDownloadModel -> {
+                    DownloadModelDialog(
+                        onConfirmButtonClick = { url -> onDownloadModelResult(url) },
+                        onDismissButtonClick = { onDownloadModelResult(null) }
+                    )
+                }
+                uiState.selectedCollectedModelOption != null -> {
+                    when(val option = uiState.selectedCollectedModelOption) {
+                        is CollectedModelOptions.Rename -> {
+                            RenameModelDialog(
+                                model = option.model,
+                                onSaveClick = onModelRenamed
+                            )
+                        }
+                        is CollectedModelOptions.Delete -> {
+                            DeleteModelDialog(
+                                model = option.model,
+                                onConfirmed = onModelDeleted
+                            )
+                        }
+                        else -> Unit
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+fun ReadFilesPermissionDialog(onResult: (PermissionResult) -> Unit) {
+    ReadFilesPermission(
+        icon = R.drawable.ic_folder,
+        rationalTitle = R.string.files_permission_rational_title.resource(),
+        rationalText = R.string.files_permission_rational_text.resource(),
+        deniedTitle = R.string.files_permission_rational_title.resource(),
+        deniedText = R.string.files_permission_denied_text.resource(),
+        deniedDismissButtonText = R.string.general_close_app.resource(),
+        onResult = { result ->
+            Log.d("qdwqdqw", "result: $result")
+            onResult(result)
+        }
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -299,7 +364,9 @@ fun Pager(
     pages: List<PagerPage>,
     onFileClick: (FileItem) -> Unit,
     onModelClick: (CollectedModel) -> Unit,
-    onBackClick: () -> Unit
+    onShowModelOptionsClick: (CollectedModel) -> Unit,
+    onModelOptionsClick: (CollectedModelOptions?) -> Unit,
+    onBackClick: (fromFilesExplorer: Boolean) -> Unit
 ) {
     val pagerState = rememberPagerState()
     Column(modifier = modifier) {
@@ -333,15 +400,20 @@ fun Pager(
         ) { pageIndex ->
             when (val page = pages[pageIndex]) {
                 is PagerPage.FilesExplorer -> FilesExplorer(
+                    isSelected = pagerState.currentPage == pageIndex,
                     page = page,
                     dateFormatter = dateFormatter,
                     onFileClick = onFileClick,
                     onBackClick = onBackClick
                 )
                 is PagerPage.ModelsCollection -> ModelsCollection(
+                    isSelected = pagerState.currentPage == pageIndex,
                     page = page,
                     dateFormatter = dateFormatter,
-                    onModelClick = onModelClick
+                    onModelClick = onModelClick,
+                    onShowModelOptionsClick = onShowModelOptionsClick,
+                    onModelOptionsClick = onModelOptionsClick,
+                    onBackClick = onBackClick
                 )
             }
         }
@@ -362,13 +434,14 @@ private fun PagerTitle(page: PagerPage) {
 
 @Composable
 private fun FilesExplorer(
+    isSelected: Boolean,
     page: PagerPage.FilesExplorer,
     dateFormatter: DateFormat,
     onFileClick: (FileItem) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: (fromFilesExplorer: Boolean) -> Unit
 ) {
-    BackHandler(enabled = page.canMoveBack) {
-        onBackClick()
+    BackHandler(enabled = isSelected && page.canMoveBack) {
+        onBackClick(true)
     }
     Column(modifier = Modifier.fillMaxSize()) {
         FilePath(page.displayablePath)
@@ -536,10 +609,17 @@ private fun EmptyFiles() {
 
 @Composable
 private fun ModelsCollection(
+    isSelected: Boolean,
     page: PagerPage.ModelsCollection,
     dateFormatter: DateFormat,
-    onModelClick: (CollectedModel) -> Unit
+    onModelClick: (CollectedModel) -> Unit,
+    onShowModelOptionsClick: (CollectedModel) -> Unit,
+    onModelOptionsClick: (CollectedModelOptions?) -> Unit,
+    onBackClick: (fromFilesExplorer: Boolean) -> Unit
 ) {
+    BackHandler(enabled = isSelected) {
+        onBackClick(false)
+    }
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -548,8 +628,11 @@ private fun ModelsCollection(
         items(page.models) { model ->
             CollectedModelListItem(
                 model = model,
+                showOptions = page.selectedModel == model,
                 dateFormatter = dateFormatter,
-                onClick = onModelClick
+                onClick = onModelClick,
+                onShowModelOptionsClick = onShowModelOptionsClick,
+                onModelOptionsClick = onModelOptionsClick
             )
         }
     }
@@ -558,18 +641,22 @@ private fun ModelsCollection(
 @Composable
 private fun CollectedModelListItem(
     model: CollectedModel,
+    showOptions: Boolean,
     dateFormatter: DateFormat,
     onClick: (CollectedModel) -> Unit,
+    onShowModelOptionsClick: (CollectedModel) -> Unit,
+    onModelOptionsClick: (CollectedModelOptions?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val creationDate = runCatching { dateFormatter.format(model.creationDateMillis) }.getOrNull()
     Row(modifier = modifier
         .fillMaxWidth()
-        .height(48.dp)
+        .height(60.dp)
         .background(AppTheme.colors.surface)
         .clickable { onClick(model) }
-        .padding(horizontal = 16.dp)
+        .padding(start = 16.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         ImageDrawable(
             modifier = Modifier
@@ -581,22 +668,56 @@ private fun CollectedModelListItem(
         Column(modifier = Modifier
             .weight(1f)
             .fillMaxHeight()
-            .padding(start = 8.dp)
+            .padding(start = 8.dp),
+            verticalArrangement = Arrangement.SpaceAround
         ) {
-            BodyMedium(
-                modifier = Modifier.weight(1f),
-                text = model.name
-            )
-            BodyMedium(
-                modifier = Modifier.weight(1f),
-                text = formatFileSize(context, model.sizeBytes).plus(if (creationDate != null) " | $creationDate" else "")
+            BodyMedium(text = model.name)
+            LabelSmall(text = formatFileSize(context, model.sizeBytes).plus(if (creationDate != null) " | $creationDate" else ""))
+        }
+        ImageButton(
+            modifier = Modifier.size(40.dp),
+            icon = R.drawable.ic_more,
+            tint = AppTheme.colors.primaryText,
+        ) {
+            onShowModelOptionsClick(model)
+        }
+        if (showOptions) {
+            CollectedModelOptions(
+                model = model,
+                onOptionsClick = onModelOptionsClick,
             )
         }
     }
 }
 
 @Composable
-private fun PopupOptions(
+private fun CollectedModelOptions(
+    model: CollectedModel,
+    onOptionsClick: (CollectedModelOptions?) -> Unit
+) {
+    Popup(
+        alignment = Alignment.TopEnd,
+        onDismissRequest = {
+            onOptionsClick(null)
+        }
+    ) {
+        MenuContainer {
+            PopupItem(text = R.string.models_explorer_collected_model_rename.resource()) {
+                onOptionsClick(CollectedModelOptions.Rename(model))
+            }
+            Divider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = DividerDefaults.color.copy(alpha = 0.1f)
+            )
+            PopupItem(text = R.string.models_explorer_collected_model_delete.resource()) {
+                onOptionsClick(CollectedModelOptions.Delete(model))
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopBarOptions(
     onOptionsClick: (ModelsExplorerOptions?) -> Unit
 ) {
     Popup(
@@ -606,16 +727,70 @@ private fun PopupOptions(
         }
     ) {
         MenuContainer {
-            PopupButton(text = R.string.models_explorer_download_model.resource()) {
+            PopupItem(text = R.string.models_explorer_download_model.resource()) {
                 onOptionsClick(ModelsExplorerOptions.DownloadModel)
             }
             Divider(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 color = DividerDefaults.color.copy(alpha = 0.1f)
             )
-            PopupButton(text = R.string.general_app_settings.resource()) {
+            PopupItem(text = R.string.general_app_settings.resource()) {
                 onOptionsClick(ModelsExplorerOptions.AppSettings)
             }
         }
     }
+}
+
+@Composable
+fun DownloadModelDialog(
+    onConfirmButtonClick: (String) -> Unit,
+    onDismissButtonClick: () -> Unit
+) {
+    InputDialog(
+        icon = R.drawable.ic_download,
+        text = "https://storage.googleapis.com/ar-answers-in-search-models/static/Tiger/model.glb",
+        title = R.string.models_explorer_download_model.resource(),
+        confirmButtonText = R.string.models_explorer_download.resource(),
+        dismissButtonText = R.string.general_cancel.resource(),
+        validationRegex = InputRegexps.url,
+        supportText = R.string.models_explorer_download_model_description_text.resource(),
+        errorText = R.string.models_explorer_download_model_error_text.resource(),
+        onConfirmButtonClick = onConfirmButtonClick,
+        onDismissButtonClick = onDismissButtonClick
+    )
+}
+
+@Composable
+fun RenameModelDialog(
+    model: CollectedModel,
+    onSaveClick: (String, CollectedModel) -> Unit
+) {
+    InputDialog(
+        icon = R.drawable.ic_rename,
+        text = model.name,
+        title = R.string.models_explorer_collected_model_rename_model.resource(),
+        confirmButtonText = R.string.general_save.resource(),
+        dismissButtonText = R.string.general_cancel.resource(),
+        validationRegex = InputRegexps.atLeastOneNonWhiteSpace,
+        supportText = R.string.models_explorer_collected_model_rename_description_text.resource(),
+        errorText = R.string.models_explorer_collected_model_rename_error_text.resource(),
+        onConfirmButtonClick = { newName -> (onSaveClick(newName, model)) },
+        onDismissButtonClick = { onSaveClick(model.name, model) }
+    )
+}
+
+@Composable
+fun DeleteModelDialog(
+    model: CollectedModel,
+    onConfirmed: (CollectedModel?) -> Unit
+) {
+    TextDialog(
+        icon = R.drawable.ic_delete,
+        title = R.string.models_explorer_collected_model_delete_model.resource(),
+        text = R.string.models_explorer_collected_model_delete_model_text.resource(model.name),
+        confirmButtonText = R.string.general_yes.resource(),
+        onConfirmButtonClick = { onConfirmed(model) },
+        dismissButtonText = R.string.general_no.resource(),
+        onDismissButtonClick = { onConfirmed(null) }
+    )
 }

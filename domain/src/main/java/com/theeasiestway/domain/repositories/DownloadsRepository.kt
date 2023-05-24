@@ -1,14 +1,15 @@
 package com.theeasiestway.domain.repositories
 
+import com.theeasiestway.domain.model.Download
 import kotlinx.coroutines.flow.Flow
 
 interface DownloadsRepository {
-    fun startObservingDownloads()
-    fun stopObservingDownloads()
     suspend fun downloadFile(
         url: String,
         folderToSave: String,
         fileNameToSave: String,
-        progressTitle: String? = null,
-    ): Flow<String>
+        cancelPrevDownloadsForSaveFolder: Boolean = false,
+        notificationTitle: String? = null,
+    ): Flow<Download>
+    fun cancelDownload(downloadId: Long): Boolean
 }

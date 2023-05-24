@@ -5,7 +5,6 @@ import android.os.Environment
 import com.theeasiestway.domain.model.CollectedModel
 import com.theeasiestway.domain.model.FileUri
 import com.theeasiestway.domain.model.FilesTree
-import com.theeasiestway.domain.repositories.DownloadsRepository
 import com.theeasiestway.domain.repositories.FilesRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.*
@@ -15,7 +14,6 @@ import java.util.*
 
 class FilesRepositoryImpl(
     context: Context,
-    private val downloadsRepository: DownloadsRepository,
     private val dispatcher: CoroutineDispatcher,
 ): FilesRepository {
 
@@ -71,19 +69,6 @@ class FilesRepositoryImpl(
                 )
             }
         }
-    }
-
-    @Throws(Exception::class)
-    override suspend fun downloadModel(
-        modelUri: String,
-        loadingTitle: String?
-    ): String {
-        return downloadsRepository.downloadFile(
-            url = modelUri,
-            folderToSave = modelsCollectionDir.absolutePath,
-            fileNameToSave = NEW_DOWNLOADED_MODEL_NAME.format(System.currentTimeMillis()),
-            progressTitle = loadingTitle
-        ).first()
     }
 
     @Throws(
@@ -184,6 +169,14 @@ class FilesRepositoryImpl(
                 file.delete()
             }
         }
+    }
+
+    override fun getModelsCollectionPath(): String {
+        return modelsCollectionDir.absolutePath
+    }
+
+    override fun getNewModelNameToCollect(): String {
+        return NEW_DOWNLOADED_MODEL_NAME.format(System.currentTimeMillis())
     }
 
     private fun getExternalFilesDir(context: Context): File? {

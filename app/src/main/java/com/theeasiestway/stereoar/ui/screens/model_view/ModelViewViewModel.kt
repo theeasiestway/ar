@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.ar.sceneform.rendering.ModelRenderable
 import com.theeasiestway.domain.model.CollectedModel
+import com.theeasiestway.domain.model.DownloadStatus
+import com.theeasiestway.domain.repositories.DownloadsRepository
 import com.theeasiestway.domain.repositories.FilesRepository
 import com.theeasiestway.domain.repositories.ModelsRepository
 import com.theeasiestway.stereoar.di.modelViewScopeId
@@ -13,11 +15,8 @@ import com.theeasiestway.stereoar.ui.screens.common.ext.state
 import com.theeasiestway.stereoar.ui.screens.common.koin.closeScope
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelUri
 import com.theeasiestway.stereoar.ui.screens.models_explorer.toFileUri
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.syntax.simple.intent
@@ -27,6 +26,8 @@ import org.orbitmvi.orbit.viewmodel.container
 class ModelViewViewModel(
     private val modelsRepository: ModelsRepository<ModelRenderable>,
     private val filesRepository: FilesRepository,
+    private val downloadsRepository: DownloadsRepository,
+    private val appScope: CoroutineScope,
     private val dispatcherIO: CoroutineDispatcher,
     private val dispatcherMain: CoroutineDispatcher
 ): ContainerHost<State, ModelViewViewModel.SideEffect>, ViewModel(), KoinComponent {
@@ -43,24 +44,21 @@ class ModelViewViewModel(
         data class HandlePermissionResult(val result: PermissionResult): Intent
         object HandleTopBarActionClick: Intent
         data class HandleOptionsClick(val option: ModelViewOptions?): Intent
-
-        object HandleClearScene: Intent
         object HandleBackClick: Intent
     }
 
     sealed interface Event {
         object RequestPermissions: Event
         data class ShowOptions(val options: List<ModelViewOptions>): Event
+        data class ModelLoading(val modelStatus: ModelLoadingStatus.Progress): Event
         data class ModelLoaded(
-            val modelUri: ModelUri.File,
-            val footPrintModel: ModelRenderable,
-            val model: ModelRenderable,
+            val modelStatus: ModelLoadingStatus.Done,
             val addedToCollection: Boolean,
             val collectedModels: List<CollectedModel>
         ): Event
         object ClearScene: Event
         object SceneCleared: Event
-        data class SavedToCollection(val modelUri: String): Event
+        object SavedToCollection: Event
     }
 
     sealed interface SideEffect {
@@ -87,15 +85,19 @@ class ModelViewViewModel(
             is Intent.RequestPermissions -> requestPermissions()
             is Intent.LoadModel -> loadModel(modelUri = intent.modelUri, loadingText = intent.loadingText)
             is Intent.HandlePermissionResult -> handlePermissionResult(result = intent.result)
-            is Intent.HandleClearScene -> handleClearScene()
             is Intent.HandleSceneCleared -> handleSceneCleared()
-            is Intent.HandleTopBarActionClick -> handleTopBarActionClick(modelUri = state.modelUri!!, addedToCollection = state.addedToCollection)
+            is Intent.HandleTopBarActionClick -> handleTopBarActionClick(modelStatus = state.modelStatus!!, addedToCollection = state.addedToCollection)
             is Intent.HandleOptionsClick -> handleOptionsClick(option = intent.option)
-            is Intent.HandleBackClick -> handleBackClick()
+            is Intent.HandleBackClick -> handleBackClick(state.modelStatus)
         }
     }
 
-    private fun handleBackClick(): Flow<Event> {
+    private fun handleBackClick(modelStatus: ModelLoadingStatus?): Flow<Event> {
+        if (modelStatus is ModelLoadingStatus.Progress) {
+            appScope.launch {
+                downloadsRepository.cancelDownload(modelStatus.downloadId)
+            }
+        }
         postSideEffect(SideEffect.CloseScreen)
         return emptyFlow()
     }
@@ -116,33 +118,35 @@ class ModelViewViewModel(
         return emptyFlow()
     }
 
-    private fun handleClearScene() = flow<Event> {
-        emit(Event.ClearScene)
-    }
-
     private fun handleSceneCleared() = flow<Event> {
         emit(Event.SceneCleared)
     }
 
-    private fun handleTopBarActionClick(modelUri: ModelUri.File, addedToCollection: Boolean) = flow<Event> {
-        emit(
-            Event.ShowOptions(
-                mutableListOf<ModelViewOptions>(
-                    ModelViewOptions.AppSettings
-                ).apply {
-                    if (!addedToCollection) {
-                        add(0, ModelViewOptions.SaveToCollection(modelUri))
+    private fun handleTopBarActionClick(modelStatus: ModelLoadingStatus, addedToCollection: Boolean) = flow<Event> {
+        if (modelStatus is ModelLoadingStatus.Done) {
+            emit(
+                Event.ShowOptions(
+                    mutableListOf(
+                        ModelViewOptions.ClearScene,
+                        ModelViewOptions.AppSettings
+                    ).apply {
+                        if (!addedToCollection) {
+                            add(0, ModelViewOptions.SaveToCollection(modelStatus.modelUri))
+                        }
                     }
-                }
+                )
             )
-        )
+        }
     }
 
-    private fun handleOptionsClick(option: ModelViewOptions?) = flow<Event> {
+    private fun handleOptionsClick(option: ModelViewOptions?) = flow {
         emit(Event.ShowOptions(options = emptyList()))
         when(option) {
             is ModelViewOptions.SaveToCollection -> {
-                saveToCollection(modelUri = option.modelUri)
+                saveToCollection(modelUri = option.modelUri, flow = this)
+            }
+            is ModelViewOptions.ClearScene -> {
+                emit(Event.ClearScene)
             }
             is ModelViewOptions.AppSettings -> {
                 postSideEffect(SideEffect.OpenAppSettings)
@@ -151,11 +155,12 @@ class ModelViewViewModel(
         }
     }
 
-    private suspend fun saveToCollection(modelUri: ModelUri.File) {
+    private suspend fun saveToCollection(modelUri: ModelUri.File, flow: FlowCollector<Event>) {
         try {
             val savedName = filesRepository.saveModelToCollection(
                 fileUri = modelUri.toFileUri()
             )
+            flow.emit(Event.SavedToCollection)
             postSideEffect(SideEffect.SavedToCollection(savedName.substringAfterLast("/")))
         } catch (e: Throwable) {
             e.printStackTrace()
@@ -163,7 +168,7 @@ class ModelViewViewModel(
         }
     }
 
-    private fun loadModel(modelUri: ModelUri, loadingText: String) = channelFlow<Event> {
+    private fun loadModel(modelUri: ModelUri, loadingText: String) = channelFlow {
         viewModelScope.launch(dispatcherIO) {
             try {
                 var modelFileUri: ModelUri.File? = null
@@ -179,10 +184,30 @@ class ModelViewViewModel(
                             modelFileUri = modelUri
                             modelsRepository.loadModel(modelUri.uri)!!
                         } else {
-                            val downloadedModelUri = filesRepository.downloadModel(
-                                modelUri = modelUri.uri,
-                                loadingTitle = loadingText
-                            )
+                            val downloadedModelUri = downloadsRepository.downloadFile(
+                                url = modelUri.uri,
+                                folderToSave = filesRepository.getModelsCollectionPath(),
+                                fileNameToSave = filesRepository.getNewModelNameToCollect(),
+                                cancelPrevDownloadsForSaveFolder = true,
+                                notificationTitle = loadingText
+                            ).onEach { download ->
+                                if (download.status is DownloadStatus.Progress) {
+                                    val (downloadedBytes, totalBytes) = download.status as DownloadStatus.Progress
+                                    send(
+                                        Event.ModelLoading(
+                                            modelStatus = ModelLoadingStatus.Progress(
+                                                downloadId = download.id,
+                                                downloadedBytes = downloadedBytes.bytes,
+                                                totalBytes = totalBytes.bytes
+                                            )
+                                        )
+                                    )
+                                } else if (download.status is DownloadStatus.Error) {
+                                    throw (download.status as DownloadStatus.Error).reason
+                                }
+                            }.mapNotNull { download ->
+                                (download.status as? DownloadStatus.Success)?.fileUri
+                            }.first()
                             modelFileUri = ModelUri.File(downloadedModelUri)
                             modelsRepository.loadModel(downloadedModelUri)!!
                         }
@@ -192,9 +217,11 @@ class ModelViewViewModel(
                     val model = modelDeferred.await()
                     send(
                         Event.ModelLoaded(
-                            modelUri = modelFileUri!!,
-                            footPrintModel = footPrintModel,
-                            model = model,
+                            modelStatus = ModelLoadingStatus.Done(
+                                modelUri = modelFileUri!!,
+                                model = model,
+                                footPrintModel = footPrintModel
+                            ),
                             addedToCollection = collectedModels.any { collectedModel ->
                                 collectedModel.path == modelUri.uri
                             },
@@ -217,13 +244,15 @@ class ModelViewViewModel(
             is Event.ShowOptions -> state.copy(
                 options = event.options
             )
+            is Event.ModelLoading -> state.copy(
+                requestPermissions = false,
+                modelStatus = event.modelStatus
+            )
             is Event.ModelLoaded -> state.copy(
                 isLoading = false,
                 requestPermissions = false,
                 addedToCollection = event.addedToCollection,
-                modelUri = event.modelUri,
-                footPrintModel = event.footPrintModel,
-                model = event.model,
+                modelStatus = event.modelStatus,
                 collectedModels = event.collectedModels
             )
             is Event.ClearScene -> state.copy(
@@ -248,8 +277,7 @@ private fun State.toUiState(): UiState {
     return UiState(
         isLoading = isLoading,
         requestPermissions = requestPermissions,
-        footPrintModel = footPrintModel,
-        model = model,
+        modelStatus = modelStatus,
         options = options,
         clearScene = clearScene
     )

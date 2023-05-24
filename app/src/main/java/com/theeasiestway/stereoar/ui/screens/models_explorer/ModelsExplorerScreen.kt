@@ -7,6 +7,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -638,6 +639,7 @@ private fun ModelsCollection(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CollectedModelListItem(
     model: CollectedModel,
@@ -654,7 +656,14 @@ private fun CollectedModelListItem(
         .fillMaxWidth()
         .height(60.dp)
         .background(AppTheme.colors.surface)
-        .clickable { onClick(model) }
+        .combinedClickable(
+            onClick = {
+                onClick(model)
+            },
+            onLongClick = {
+                onShowModelOptionsClick(model)
+            }
+        )
         .padding(start = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

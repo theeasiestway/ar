@@ -13,18 +13,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.manualcomposablecalls.ManualComposableCallsBuilder
 import com.ramcosta.composedestinations.manualcomposablecalls.composable
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.ramcosta.composedestinations.result.ResultBackNavigator
 import com.ramcosta.composedestinations.scope.resultBackNavigator
-import com.theeasiestway.domain.repositories.DownloadsRepository
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.modelViewScopeId
 import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.TopBarButton
@@ -33,7 +29,9 @@ import com.theeasiestway.stereoar.ui.screens.common.compose.custom.MenuContainer
 import com.theeasiestway.stereoar.ui.screens.common.compose.items.PopupItem
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.RequestCameraPermission
+import com.theeasiestway.stereoar.ui.screens.common.compose.spacers.Spacer4
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.BodyLarge
+import com.theeasiestway.stereoar.ui.screens.common.compose.text.BodyMedium
 import com.theeasiestway.stereoar.ui.screens.common.ext.onSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource
 import com.theeasiestway.stereoar.ui.screens.common.ext.showSnackBar
@@ -45,7 +43,6 @@ import com.theeasiestway.stereoar.ui.screens.model_view.ar_scene.ArScene
 import com.theeasiestway.stereoar.ui.screens.model_view.ar_scene.ArSceneState
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelUri
 import com.theeasiestway.stereoar.ui.theme.AppTheme
-import org.koin.androidx.compose.get
 import org.koin.androidx.compose.koinViewModel
 
 fun ManualComposableCallsBuilder.modelViewScreenFactory(
@@ -69,30 +66,10 @@ fun ModelViewScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val snackBarHostState = remember { SnackbarHostState() }
-    val downloadsRepository: DownloadsRepository = get()
     val viewModel: ModelViewViewModel = koinViewModel()
     val uiState = viewModel.uiState.collectAsState(initial = UiState()).value
     var navResult by remember { mutableStateOf<ModelViewResult?>(null) }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when(event) {
-                Lifecycle.Event.ON_START -> {
-                    downloadsRepository.startObservingDownloads()
-                }
-                Lifecycle.Event.ON_STOP -> {
-                    downloadsRepository.stopObservingDownloads()
-                }
-                else -> Unit
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
 
     viewModel.onSideEffect { effect ->
         when(effect) {
@@ -192,6 +169,9 @@ private fun Content(
     onSceneCleared: () -> Unit,
     onBackClick: () -> Unit
 ) {
+    BackHandler {
+        onBackClick()
+    }
     when {
         uiState.isLoading || uiState.requestPermissions -> {
             if (uiState.requestPermissions) {
@@ -199,6 +179,7 @@ private fun Content(
             }
             ShimmeredScene(
                 isLocalModel = isLocalModel,
+                loadingProgress = (uiState.modelStatus as? ModelLoadingStatus.Progress)?.toIntProgress() ?: 0,
                 modifier = modifier
             )
         }
@@ -209,13 +190,14 @@ private fun Content(
                     onOptionsClick = onOptionsClick
                 )
             }
-            Scene(
-                modifier = modifier,
-                sceneState = uiState.toSceneState(),
-                onSceneCleared = onSceneCleared,
-                onTopBarOptionsClick = onTopBarOptionsClick,
-                onBackClick = onBackClick
-            )
+            uiState.toSceneState()?.let { sceneState ->
+                Scene(
+                    modifier = modifier,
+                    sceneState = sceneState,
+                    onSceneCleared = onSceneCleared,
+                    onTopBarOptionsClick = onTopBarOptionsClick,
+                )
+            }
         }
     }
 }
@@ -238,10 +220,8 @@ private fun Scene(
     sceneState: ArSceneState,
     modifier: Modifier = Modifier,
     onTopBarOptionsClick: () -> Unit,
-    onSceneCleared: () -> Unit,
-    onBackClick: () -> Unit
+    onSceneCleared: () -> Unit
 ) {
-    BackHandler(onBack = onBackClick)
     Box(
         modifier = modifier,
         contentAlignment = Alignment.TopEnd
@@ -259,17 +239,21 @@ private fun Scene(
     }
 }
 
-private fun UiState.toSceneState(): ArSceneState {
-    return ArSceneState(
-        footPrintModel = footPrintModel!!,
-        model = model!!,
-        clearScene = clearScene,
-    )
+private fun UiState.toSceneState(): ArSceneState? {
+    val modelState = modelStatus as? ModelLoadingStatus.Done
+    return modelState?.let { state ->
+        ArSceneState(
+            footPrintModel = state.footPrintModel,
+            model = state.model,
+            clearScene = clearScene,
+        )
+    }
 }
 
 @Composable
 private fun ShimmeredScene(
     isLocalModel: Boolean,
+    loadingProgress: Int,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -282,7 +266,16 @@ private fun ShimmeredScene(
                 .background(Color.Black),
             bubblesCount = 20
         )
-        LoadingText(isLocalModel)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            LoadingText(isLocalModel)
+            Spacer4()
+            BodyMedium(
+                text = if (loadingProgress > 0) "$loadingProgress%" else "", // todo make animation for changing progress
+                color = AppTheme.colors.surface
+            )
+        }
     }
 }
 
@@ -342,6 +335,15 @@ private fun TopBarOptions(
                     is ModelViewOptions.SaveToCollection -> {
                         PopupItem(text = R.string.model_view_save_to_collection.resource()) {
                             onOptionsClick(ModelViewOptions.SaveToCollection(option.modelUri))
+                        }
+                        Divider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = DividerDefaults.color.copy(alpha = 0.1f)
+                        )
+                    }
+                    is ModelViewOptions.ClearScene -> {
+                        PopupItem(text = R.string.model_view_clear_scene.resource()) {
+                            onOptionsClick(ModelViewOptions.ClearScene)
                         }
                         Divider(
                             modifier = Modifier.padding(horizontal = 16.dp),

@@ -25,6 +25,8 @@ val modelViewModule = module {
         ModelViewViewModel(
             modelsRepository = scope.get(),
             filesRepository = get(),
+            downloadsRepository = get(),
+            appScope = get(named(appScope)),
             dispatcherIO = get(named(ioDispatcher)),
             dispatcherMain = get(named(mainDispatcher))
         )

@@ -3,9 +3,12 @@
 #### The work is still in progress but currently the app consists of two main screens:
 * Files Explorer:
     * Allows to find and choose .glb model on the internal or external storage of the phone for viewing.
+    * Allows to download .glb model from a URL for viewing.
+    * Allows to manage the models that were added to models collection.
 * Model Viewer:
-    * Allows to view .glb model that was chosen on files explorer screen in augmented reality using the camera of the phone.
+    * Allows to view .glb model that was chosen on files explorer screen or downloaded from a URL in augmented reality using the camera of the phone.
     * Allows to scale, rotate and move the model.
+    * Allows to save the model to models collection.
 
 
 #### Used technogies and libraries:

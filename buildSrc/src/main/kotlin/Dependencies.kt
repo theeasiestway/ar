@@ -51,6 +51,7 @@ object AppDeps {
         val composeNavigation = "androidx.navigation:navigation-compose:${Versions.App.composeNavigation}"
         val composePermissions = "com.google.accompanist:accompanist-permissions:${Versions.App.composeAccompanist}"
         val composeViewPager = "com.google.accompanist:accompanist-pager:${Versions.App.composeAccompanist}"
+        val composeConstraintLayout = "androidx.constraintlayout:constraintlayout-compose:${Versions.App.composeConstraintLayout}"
         val composeActivity = "androidx.activity:activity-compose:${Versions.App.composeActivity}"
         val composeMaterial = "androidx.compose.material3:material3:${Versions.App.composeMaterial}"
         val composeAnimation = "androidx.compose.animation:animation:${Versions.App.composeAnimation}"

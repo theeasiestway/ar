@@ -6,15 +6,36 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
+import androidx.constraintlayout.compose.ConstraintLayout
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.manualcomposablecalls.ManualComposableCallsBuilder
 import com.ramcosta.composedestinations.manualcomposablecalls.composable
@@ -23,13 +44,13 @@ import com.ramcosta.composedestinations.result.ResultBackNavigator
 import com.ramcosta.composedestinations.scope.resultBackNavigator
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.modelViewScopeId
+import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.OutlinedButton
 import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.TopBarButton
 import com.theeasiestway.stereoar.ui.screens.common.compose.custom.BubblesEffect
 import com.theeasiestway.stereoar.ui.screens.common.compose.custom.MenuContainer
 import com.theeasiestway.stereoar.ui.screens.common.compose.items.PopupItem
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.RequestCameraPermission
-import com.theeasiestway.stereoar.ui.screens.common.compose.spacers.Spacer4
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.BodyLarge
 import com.theeasiestway.stereoar.ui.screens.common.compose.text.BodyMedium
 import com.theeasiestway.stereoar.ui.screens.common.ext.onSideEffect
@@ -180,6 +201,7 @@ private fun Content(
             ShimmeredScene(
                 isLocalModel = isLocalModel,
                 loadingProgress = (uiState.modelStatus as? ModelLoadingStatus.Progress)?.toIntProgress() ?: 0,
+                onCancelClick = onBackClick,
                 modifier = modifier
             )
         }
@@ -254,8 +276,18 @@ private fun UiState.toSceneState(): ArSceneState? {
 private fun ShimmeredScene(
     isLocalModel: Boolean,
     loadingProgress: Int,
+    onCancelClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val progressAnimation = remember { Animatable(0f) }
+    val animationSpec = remember { tween<Float>(durationMillis = 500) }
+
+    LaunchedEffect(progressAnimation, loadingProgress) {
+        progressAnimation.animateTo(
+            loadingProgress.toFloat(),
+            animationSpec = animationSpec
+        )
+    }
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
@@ -266,14 +298,50 @@ private fun ShimmeredScene(
                 .background(Color.Black),
             bubblesCount = 20
         )
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+        ConstraintLayout(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 40.dp),
         ) {
-            LoadingText(isLocalModel)
-            Spacer4()
+            val (labelRef, spacerRef, progressRef, buttonRef) = createRefs()
+            LoadingText(
+                modifier = Modifier.constrainAs(labelRef) {
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                    bottom.linkTo(spacerRef.top)
+                },
+                isLocalModel = isLocalModel
+            )
+            Spacer(
+                modifier = Modifier
+                    .height(4.dp)
+                    .constrainAs(spacerRef) {
+                        start.linkTo(parent.start)
+                        top.linkTo(parent.top)
+                        end.linkTo(parent.end)
+                        bottom.linkTo(parent.bottom)
+                    }
+            )
             BodyMedium(
-                text = if (loadingProgress > 0) "$loadingProgress%" else "", // todo make animation for changing progress
+                modifier = Modifier.constrainAs(progressRef) {
+                    start.linkTo(parent.start)
+                    top.linkTo(spacerRef.bottom)
+                    end.linkTo(parent.end)
+                },
+                text = if (progressAnimation.value > 0) "${progressAnimation.value.toInt()}%" else "",
                 color = AppTheme.colors.surface
+            )
+            OutlinedButton(
+                modifier = Modifier
+                    .widthIn(min = 104.dp)
+                    .constrainAs(buttonRef) {
+                        start.linkTo(parent.start)
+                        end.linkTo(parent.end)
+                        bottom.linkTo(parent.bottom)
+                    },
+                title = R.string.general_cancel.resource(),
+                titleColor = AppTheme.colors.white,
+                onClick = onCancelClick
             )
         }
     }
@@ -281,7 +349,8 @@ private fun ShimmeredScene(
 
 @Composable
 private fun LoadingText(
-    isLocalModel: Boolean
+    isLocalModel: Boolean,
+    modifier: Modifier
 ) {
     val animation = remember { Animatable(0f) }
     val textPostfix = when(animation.value.toInt()) {
@@ -291,7 +360,7 @@ private fun LoadingText(
         else -> "..."
     }
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center
     ) {
         BodyLarge(

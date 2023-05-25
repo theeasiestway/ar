@@ -1,3 +1,4 @@
+@file:Suppress("UnstableApiUsage")
 plugins {
     kotlin(AppDeps.Plugins.Kotlin.android)
     id(AppDeps.Plugins.Id.application)
@@ -46,6 +47,7 @@ dependencies {
     implementation(AppDeps.App.composeActivity)
     implementation(AppDeps.App.composeMaterial)
     implementation(AppDeps.App.composeViewPager)
+    implementation(AppDeps.App.composeConstraintLayout)
     implementation(AppDeps.App.composeAnimation)
     implementation(AppDeps.App.composeUiTooling)
     implementation(AppDeps.App.composeLifecycle)

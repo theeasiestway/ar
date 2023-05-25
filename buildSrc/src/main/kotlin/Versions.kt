@@ -6,7 +6,7 @@ import org.gradle.api.JavaVersion
 object Versions {
 
     object Main {
-        const val gradle = "7.4.0-beta05"
+        const val gradle = "7.4.2"
         const val kotlin = "1.8.10"
         const val kotlinKtx = "1.9.0"
         const val kotlinCompilerExt = "1.4.4"
@@ -24,6 +24,7 @@ object Versions {
 
         const val composeNavigation = "2.5.3"
         const val composeAccompanist = "0.30.1"
+        const val composeConstraintLayout = "1.0.1"
         const val composeActivity = "1.7.1"
         const val composeMaterial = "1.1.0-rc01"
         const val composeAnimation = "1.4.2"

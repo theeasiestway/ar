@@ -1,7 +1,7 @@
 package com.theeasiestway.stereoar.ui.screens.models_explorer
 
 import android.os.Parcelable
-import com.theeasiestway.domain.model.CollectedModel
+import com.theeasiestway.domain.repositories.files.models.CollectedModel
 import kotlinx.parcelize.Parcelize
 
 enum class ModelsExplorerOptions {
@@ -18,16 +18,16 @@ sealed interface CollectedModelOptions {
 @Parcelize
 sealed interface ModelUri: Parcelable {
     val uri: String
-
-    @Parcelize
-    data class File(override val uri: String): ModelUri {
-        fun getFileName(): String {
-            return uri.substringAfterLast("/")
-        }
-    }
-    @Parcelize
-    data class Url(override val uri: String) : ModelUri
 }
+
+@Parcelize
+data class FileUri(override val uri: String): ModelUri, Parcelable {
+    fun getFileName(): String {
+        return uri.substringAfterLast("/")
+    }
+}
+@Parcelize
+data class UrlUri(override val uri: String): ModelUri, Parcelable
 
 sealed interface DisplayablePath {
     object Root: DisplayablePath

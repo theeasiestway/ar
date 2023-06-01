@@ -56,12 +56,14 @@ import com.theeasiestway.stereoar.ui.screens.common.compose.text.BodyMedium
 import com.theeasiestway.stereoar.ui.screens.common.ext.onSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.ext.resource
 import com.theeasiestway.stereoar.ui.screens.common.ext.showSnackBar
+import com.theeasiestway.stereoar.ui.screens.common.ext.toUri
 import com.theeasiestway.stereoar.ui.screens.common.koin.createScopeIfNull
 import com.theeasiestway.stereoar.ui.screens.destinations.ModelViewScreenDestination
 import com.theeasiestway.stereoar.ui.screens.model_view.ModelViewViewModel.Intent
 import com.theeasiestway.stereoar.ui.screens.model_view.ModelViewViewModel.SideEffect
 import com.theeasiestway.stereoar.ui.screens.model_view.ar_scene.ArScene
 import com.theeasiestway.stereoar.ui.screens.model_view.ar_scene.ArSceneState
+import com.theeasiestway.stereoar.ui.screens.models_explorer.FileUri
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelUri
 import com.theeasiestway.stereoar.ui.theme.AppTheme
 import org.koin.androidx.compose.koinViewModel
@@ -96,7 +98,13 @@ fun ModelViewScreen(
         when(effect) {
             is SideEffect.LoadModel -> {
                 val loadingText = context.getString(R.string.model_view_downloading_model_to_collection)
-                viewModel.handleIntent(Intent.LoadModel(modelUri = modelUri, loadingText = loadingText))
+                viewModel.handleIntent(
+                    Intent.LoadModel(
+                        footPrintModelUri = FileUri(R.raw.sceneform_footprint.toUri(context.resources)),
+                        modelUri = modelUri,
+                        loadingText = loadingText
+                    )
+                )
             }
             is SideEffect.OpenAppSettings -> {
                 showSnackBar(
@@ -157,7 +165,7 @@ fun ModelViewScreen(
         }
     ) { paddingValues ->
         Content(
-            isLocalModel = modelUri is ModelUri.File,
+            isLocalModel = modelUri is FileUri,
             uiState = uiState,
             modifier = Modifier.padding(paddingValues),
             onRequestPermissionResult = { result ->

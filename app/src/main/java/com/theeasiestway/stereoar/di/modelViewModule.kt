@@ -1,8 +1,9 @@
 package com.theeasiestway.stereoar.di
 
 import com.google.ar.sceneform.rendering.ModelRenderable
-import com.theeasiestway.data.repositories.ModelsRepositoryImpl
-import com.theeasiestway.domain.repositories.ModelsRepository
+import com.theeasiestway.data.repositories.models.ModelsRepositoryImpl
+import com.theeasiestway.data.repositories.models.data_store.ModelsLocalDataStore
+import com.theeasiestway.domain.repositories.models.ModelsRepository
 import com.theeasiestway.stereoar.ui.screens.model_view.ModelViewViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -15,7 +16,7 @@ val modelViewModule = module {
     scope(named(modelViewScopeId)) {
         scoped<ModelsRepository<ModelRenderable>> {
             ModelsRepositoryImpl(
-                context = androidContext()
+                dataStore = ModelsLocalDataStore(androidContext())
             )
         }
     }

@@ -1,6 +1,6 @@
 package com.theeasiestway.stereoar.ui.screens.model_view
 
-import com.theeasiestway.domain.model.CollectedModel
+import com.theeasiestway.domain.repositories.files.models.CollectedModel
 
 data class State(
     val isLoading: Boolean = true,

@@ -1,18 +1,9 @@
 package com.theeasiestway.stereoar.ui.screens.models_explorer
 
-import com.theeasiestway.domain.model.FileUri
-
-fun ModelUri.toFileUri(): FileUri {
-    return when(this) {
-        is ModelUri.File -> toFileUri()
-        is ModelUri.Url -> toFileUri()
-    }
+fun FileUri.toDomain(): com.theeasiestway.domain.repositories.files.models.FileUri {
+    return com.theeasiestway.domain.repositories.files.models.FileUri(uri = uri)
 }
 
-fun ModelUri.File.toFileUri(): FileUri.File {
-    return FileUri.File(uri = uri)
-}
-
-fun ModelUri.Url.toFileUri(): FileUri.Url {
-    return FileUri.Url(uri = uri)
+fun UrlUri.toDomain(): com.theeasiestway.domain.repositories.files.models.UrlUri {
+    return com.theeasiestway.domain.repositories.files.models.UrlUri(uri = uri)
 }

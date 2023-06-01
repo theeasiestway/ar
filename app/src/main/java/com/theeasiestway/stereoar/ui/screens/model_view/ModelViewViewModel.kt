@@ -3,18 +3,19 @@ package com.theeasiestway.stereoar.ui.screens.model_view
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.ar.sceneform.rendering.ModelRenderable
-import com.theeasiestway.domain.model.CollectedModel
-import com.theeasiestway.domain.model.DownloadStatus
-import com.theeasiestway.domain.repositories.DownloadsRepository
-import com.theeasiestway.domain.repositories.FilesRepository
-import com.theeasiestway.domain.repositories.ModelsRepository
+import com.theeasiestway.domain.repositories.files.models.CollectedModel
+import com.theeasiestway.domain.repositories.downloads.models.DownloadStatus
+import com.theeasiestway.domain.repositories.downloads.DownloadsRepository
+import com.theeasiestway.domain.repositories.files.FilesRepository
+import com.theeasiestway.domain.repositories.models.ModelsRepository
 import com.theeasiestway.stereoar.di.modelViewScopeId
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.ext.postSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.ext.state
 import com.theeasiestway.stereoar.ui.screens.common.koin.closeScope
+import com.theeasiestway.stereoar.ui.screens.models_explorer.FileUri
 import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelUri
-import com.theeasiestway.stereoar.ui.screens.models_explorer.toFileUri
+import com.theeasiestway.stereoar.ui.screens.models_explorer.toDomain
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.koin.core.component.KoinComponent
@@ -39,7 +40,7 @@ class ModelViewViewModel(
 
     sealed interface Intent {
         object RequestPermissions: Intent
-        data class LoadModel(val modelUri: ModelUri, val loadingText: String): Intent
+        data class LoadModel(val footPrintModelUri: FileUri, val modelUri: ModelUri, val loadingText: String): Intent
         object HandleSceneCleared: Intent
         data class HandlePermissionResult(val result: PermissionResult): Intent
         object HandleTopBarActionClick: Intent
@@ -83,7 +84,7 @@ class ModelViewViewModel(
     private fun actor(state: State, intent: Intent): Flow<Event> {
         return when(intent) {
             is Intent.RequestPermissions -> requestPermissions()
-            is Intent.LoadModel -> loadModel(modelUri = intent.modelUri, loadingText = intent.loadingText)
+            is Intent.LoadModel -> loadModel(footPrintModelUri = intent.footPrintModelUri, modelUri = intent.modelUri, loadingText = intent.loadingText)
             is Intent.HandlePermissionResult -> handlePermissionResult(result = intent.result)
             is Intent.HandleSceneCleared -> handleSceneCleared()
             is Intent.HandleTopBarActionClick -> handleTopBarActionClick(modelStatus = state.modelStatus!!, addedToCollection = state.addedToCollection)
@@ -155,10 +156,10 @@ class ModelViewViewModel(
         }
     }
 
-    private suspend fun saveToCollection(modelUri: ModelUri.File, flow: FlowCollector<Event>) {
+    private suspend fun saveToCollection(modelUri: FileUri, flow: FlowCollector<Event>) {
         try {
-            val savedName = filesRepository.saveModelToCollection(
-                fileUri = modelUri.toFileUri()
+            val savedName = filesRepository.saveToCollection(
+                file = modelUri.toDomain()
             )
             flow.emit(Event.SavedToCollection)
             postSideEffect(SideEffect.SavedToCollection(savedName.substringAfterLast("/")))
@@ -168,21 +169,25 @@ class ModelViewViewModel(
         }
     }
 
-    private fun loadModel(modelUri: ModelUri, loadingText: String) = channelFlow {
+    private fun loadModel(
+        footPrintModelUri: FileUri,
+        modelUri: ModelUri,
+        loadingText: String
+    ) = channelFlow {
         viewModelScope.launch(dispatcherIO) {
             try {
-                var modelFileUri: ModelUri.File? = null
+                var modelFileUri: FileUri? = null
                 coroutineScope {
                     val collectedModelsDeferred = async {
-                        filesRepository.loadModelsFromCollection()
+                        filesRepository.getCollectedModels()
                     }
                     val footPrintModelDeferred = async(dispatcherMain) {
-                        modelsRepository.loadFootPrintModel()
+                        modelsRepository.getModel(footPrintModelUri.uri)!!
                     }
                     val modelDeferred = async(dispatcherMain) {
-                        if (modelUri is ModelUri.File) {
+                        if (modelUri is FileUri) {
                             modelFileUri = modelUri
-                            modelsRepository.loadModel(modelUri.uri)!!
+                            modelsRepository.getModel(modelUri.uri)!!
                         } else {
                             val downloadedModelUri = downloadsRepository.downloadFile(
                                 url = modelUri.uri,
@@ -208,8 +213,8 @@ class ModelViewViewModel(
                             }.mapNotNull { download ->
                                 (download.status as? DownloadStatus.Success)?.fileUri
                             }.first()
-                            modelFileUri = ModelUri.File(downloadedModelUri)
-                            modelsRepository.loadModel(downloadedModelUri)!!
+                            modelFileUri = FileUri(downloadedModelUri)
+                            modelsRepository.getModel(downloadedModelUri)!!
                         }
                     }
                     val collectedModels = collectedModelsDeferred.await()

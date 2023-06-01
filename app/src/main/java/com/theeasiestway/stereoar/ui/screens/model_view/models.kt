@@ -1,11 +1,11 @@
 package com.theeasiestway.stereoar.ui.screens.model_view
 
 import com.google.ar.sceneform.rendering.ModelRenderable
-import com.theeasiestway.stereoar.ui.screens.models_explorer.ModelUri
+import com.theeasiestway.stereoar.ui.screens.models_explorer.FileUri
 
 
 sealed interface ModelViewOptions {
-    data class SaveToCollection(val modelUri: ModelUri.File): ModelViewOptions
+    data class SaveToCollection(val modelUri: FileUri): ModelViewOptions
     object ClearScene: ModelViewOptions
     object AppSettings: ModelViewOptions
 }
@@ -21,7 +21,7 @@ sealed interface ModelLoadingStatus {
         }
     }
     data class Done(
-        val modelUri: ModelUri.File,
+        val modelUri: FileUri,
         val model: ModelRenderable,
         val footPrintModel: ModelRenderable
     ): ModelLoadingStatus

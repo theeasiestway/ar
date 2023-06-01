@@ -2,29 +2,33 @@ package com.theeasiestway.stereoar.ui.screens.models_explorer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.theeasiestway.domain.model.CollectedModel
-import com.theeasiestway.domain.model.FilesTree
-import com.theeasiestway.domain.repositories.FilesRepository
-import com.theeasiestway.domain.repositories.SettingsRepository
+import com.theeasiestway.domain.repositories.files.FilesRepository
+import com.theeasiestway.domain.repositories.files.models.CollectedModel
+import com.theeasiestway.domain.repositories.files.models.Dir
+import com.theeasiestway.domain.repositories.files.models.FilesTree
+import com.theeasiestway.domain.repositories.settings.SettingsRepository
 import com.theeasiestway.stereoar.ui.screens.common.compose.permissions.PermissionResult
 import com.theeasiestway.stereoar.ui.screens.common.ext.postSideEffect
 import com.theeasiestway.stereoar.ui.screens.common.ext.state
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.syntax.simple.intent
 import org.orbitmvi.orbit.syntax.simple.reduce
 import org.orbitmvi.orbit.viewmodel.container
-import java.io.File
 
 class ModelsExplorerViewModel(
     private val filesRepository: FilesRepository,
     private val settingsRepository: SettingsRepository,
-    private val dispatcherIO: CoroutineDispatcher
+    private val ioDispatcher: CoroutineDispatcher
 ): ContainerHost<State, ModelsExplorerViewModel.SideEffect>, ViewModel(), KoinComponent {
 
     override val container = container<State, SideEffect>(State()) {
@@ -128,15 +132,15 @@ class ModelsExplorerViewModel(
     }
 
     private fun loadData() = channelFlow<Event> {
-        viewModelScope.launch(dispatcherIO) {
+        viewModelScope.launch(ioDispatcher) {
             try {
                 coroutineScope {
                     val filesTreeDeferred = async {
-                        val lastFolder = settingsRepository.loadLastVisitedFolder()
-                        filesRepository.loadLastVisitedFolder(lastFolder)
+                        val lastFolder = null //settingsRepository.loadLastVisitedFolder() TODO
+                        filesRepository.getLastVisitedFolder(lastFolder)
                     }
                     val modelsCollectionDeferred = async {
-                        filesRepository.loadModelsFromCollection()
+                        filesRepository.getCollectedModels()
                     }
                     val filesTree = filesTreeDeferred.await()
                     val collectedModels = modelsCollectionDeferred.await()
@@ -156,7 +160,7 @@ class ModelsExplorerViewModel(
 
     private fun updateCollectedModels() = flow<Event> {
         try {
-            val collectedModels = filesRepository.loadModelsFromCollection()
+            val collectedModels = filesRepository.getCollectedModels()
             emit(Event.CollectedModelsChanged(collectedModels))
         } catch(e: Throwable) {
             e.printStackTrace()
@@ -199,8 +203,8 @@ class ModelsExplorerViewModel(
     }
 
     private fun showModel(uri: String, isFile: Boolean) = flow<Event> {
-        val modelUri = if (isFile) ModelUri.File(uri = uri)
-        else ModelUri.Url(uri = uri)
+        val modelUri = if (isFile) FileUri(uri = uri)
+        else UrlUri(uri = uri)
         postSideEffect(SideEffect.OpenModelScreen(modelUri))
         emit(Event.DownloadModel(show = false))
     }
@@ -217,7 +221,7 @@ class ModelsExplorerViewModel(
         try {
             emit(Event.ModelOptionSelected(option = null))
             filesRepository.renameCollectedModel(newName, model)
-            val collectedModels = filesRepository.loadModelsFromCollection()
+            val collectedModels = filesRepository.getCollectedModels()
             emit(Event.CollectedModelsChanged(collectedModels = collectedModels))
         } catch (e: Throwable) {
             e.printStackTrace()
@@ -229,8 +233,8 @@ class ModelsExplorerViewModel(
         try {
             emit(Event.ModelOptionSelected(option = null))
             if (model != null) {
-                filesRepository.deleteModelFromCollection(model)
-                val collectedModels = filesRepository.loadModelsFromCollection()
+                filesRepository.deleteCollectedModel(model)
+                val collectedModels = filesRepository.getCollectedModels()
                 emit(Event.CollectedModelsChanged(collectedModels = collectedModels))
             }
         } catch (e: Throwable) {
@@ -332,40 +336,40 @@ private fun FilesTree.toDisplayablePath(): DisplayablePath {
 }
 
 private fun FilesTree.toUi(): List<FileItem> {
-    return files.map { file ->
-        file.toUi(
+    return files.map { dir ->
+        dir.toUi(
             isRoot = currentPath == rootPath,
             externalStoragePath = externalStorageRootPath
         )
     }
 }
 
-private fun File.toUi(
+private fun Dir.toUi(
     isRoot: Boolean,
     externalStoragePath: String?
 ): FileItem {
     return if (isRoot) {
         val isExternalStorage = externalStoragePath != null && absolutePath.startsWith(externalStoragePath)
         FileItem.Root(
-            parentPath = parent,
+            parentPath = parentPath,
             path = absolutePath,
             isExternalStorage = isExternalStorage
         )
-    } else if (isDirectory) {
+    } else if (this is Dir.Folder) {
         FileItem.NotRoot.Folder(
-            parentPath = parent,
+            parentPath = parentPath,
             path = absolutePath,
             title = name,
-            creationDateMillis = lastModified(),
-            filesCount = listFiles()?.size ?: 0
+            creationDateMillis = creationDateMillis,
+            filesCount = filesCount
         )
     } else {
         FileItem.NotRoot.File(
-            parentPath = parent,
+            parentPath = parentPath,
             path = absolutePath,
             title = name,
-            creationDateMillis = lastModified(),
-            sizeBytes = length()
+            creationDateMillis = creationDateMillis,
+            sizeBytes = sizeBytes
         )
     }
 }

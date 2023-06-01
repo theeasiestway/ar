@@ -1,13 +1,18 @@
 package com.theeasiestway.stereoar.di
 
 import android.text.format.DateFormat
-import com.theeasiestway.data.repositories.download.DownloadsRepositoryImpl
-import com.theeasiestway.data.repositories.FilesRepositoryImpl
-import com.theeasiestway.data.repositories.SettingsRepositoryImpl
-import com.theeasiestway.domain.repositories.DownloadsRepository
-import com.theeasiestway.domain.repositories.FilesRepository
-import com.theeasiestway.domain.repositories.SettingsRepository
-import kotlinx.coroutines.*
+import com.theeasiestway.data.repositories.downloads.DownloadsRepositoryImpl
+import com.theeasiestway.data.repositories.downloads.data_store.InternetDownloadsDataStore
+import com.theeasiestway.data.repositories.files.FilesRepositoryImpl
+import com.theeasiestway.data.repositories.files.data_store.FilesLocalDataStore
+import com.theeasiestway.data.repositories.settings.SettingsRepositoryImpl
+import com.theeasiestway.data.repositories.settings.data_store.SettingsLocalDataStore
+import com.theeasiestway.domain.repositories.downloads.DownloadsRepository
+import com.theeasiestway.domain.repositories.files.FilesRepository
+import com.theeasiestway.domain.repositories.settings.SettingsRepository
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.qualifier.named
@@ -27,21 +32,22 @@ val appModule = module {
 
     single<DownloadsRepository> {
         DownloadsRepositoryImpl(
-            context = androidContext()
+            dataStore = InternetDownloadsDataStore(androidContext()),
+            ioDispatcher = get(named(ioDispatcher))
         )
     }
 
     single<SettingsRepository> {
         SettingsRepositoryImpl(
-            context = androidContext(),
-            dispatcher = get(named(ioDispatcher))
+            dataStore = SettingsLocalDataStore(androidContext()),
+            ioDispatcher = get(named(ioDispatcher))
         )
     }
 
     single<FilesRepository> {
         FilesRepositoryImpl(
-            context = androidContext(),
-            dispatcher = get(named(ioDispatcher))
+            dataStore = FilesLocalDataStore(androidContext()),
+            ioDispatcher = get(named(ioDispatcher))
         )
     }
 }

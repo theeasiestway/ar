@@ -33,7 +33,7 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.ramcosta.composedestinations.result.NavResult
 import com.ramcosta.composedestinations.result.ResultRecipient
 import com.ramcosta.composedestinations.scope.resultRecipient
-import com.theeasiestway.domain.model.CollectedModel
+import com.theeasiestway.domain.repositories.files.models.CollectedModel
 import com.theeasiestway.stereoar.R
 import com.theeasiestway.stereoar.di.is24TimeFormatQualifier
 import com.theeasiestway.stereoar.ui.screens.common.compose.buttons.ImageButton
